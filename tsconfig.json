@@ -1,0 +1,12 @@
+{
+	"compilerOptions": {
+		"strict": true,
+		"outDir": "dist",
+		"target": "es2024",
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"esModuleInterop": true
+	},
+	"include": ["src", "tsconfig.json", "builder.js"],
+	"exclude": ["node_modules", "dist"]
+}
