@@ -20,7 +20,7 @@ const connections = require("../../components/connections");
 
 
 test("Changes the user's password when they receive a code by email after clicking \"Forgot my password\"", async () => {
-	const body = { email: "contact@sleezzi.fr", code: "123456", password: "password1234" };
+	const body = { email: "test@sleezzi.fr", code: "123456", password: "password1234" };
 	queryAsync.default
 	.mockResolvedValueOnce(new Promise((resolve) => resolve([ { code: createHash("sha256").update(body.code).digest("hex"), attempts: 1, expireAt: Date.now() / 1000 + 1000 * 60 * 15 } ])))
 	.mockResolvedValueOnce(new Promise((resolve) => resolve([ { username: "sleezzi" } ])));

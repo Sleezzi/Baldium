@@ -13,7 +13,7 @@ const queryAsync = require("../../components/queryAsync");
 
 
 test("Retrieves user account information", async () => {
-	const account = { username: "sleezzi", email: "contact@sleezzi.fr" };
+	const account = { username: "sleezzi", email: "test@sleezzi.fr" };
 	const connection = { username: account.username, ip: "192.*.*.1", last_connection: Date.now() / 1000, location: null, os: "Linu", navigator: "Chrome" }
 	queryAsync.default
 	.mockResolvedValueOnce(new Promise((resolve) => resolve([ account ])))

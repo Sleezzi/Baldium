@@ -23,7 +23,7 @@ const connections = require("../../components/connections");
 
 
 test("Delete a user account", async () => {
-	const account = { username: "sleezzi", email: "contact@sleezzi.fr" };
+	const account = { username: "sleezzi", email: "test@sleezzi.fr" };
 	queryAsync.default
 	.mockResolvedValueOnce(new Promise((resolve) => resolve([ account ])))
 	.mockResolvedValueOnce(new Promise((resolve) => resolve(null)));
