@@ -1,14 +1,14 @@
-import { readdirSync } from "fs";
+import { readdir } from "fs/promises";
 
-const IndexFolder = (path: string) => {
+const IndexFolder = async (path: string) => {
 	try {
 		let files: {
 			type: "file" | "folder",
 			path: string
 		}[] = [];
 
-		const indexer = (p: string) => {
-			for (const file of readdirSync(p, { withFileTypes: true })) {
+		const indexer = async (p: string) => {
+			for (const file of (await readdir(p, { withFileTypes: true }))) {
 				const pathFile = `${p}/${file.name}`;
 				
 				if (file.isDirectory()) {
@@ -16,7 +16,7 @@ const IndexFolder = (path: string) => {
 						type: "folder",
 						path: pathFile
 					});
-					indexer(pathFile);
+					await indexer(pathFile);
 					continue;
 				}
 				if (file.isFile()) {
@@ -28,10 +28,10 @@ const IndexFolder = (path: string) => {
 				}
 			}
 		}
-		indexer(path);
+		await indexer(path);
 		return files;
-	} catch (error) {
-		console.error();
+	} catch (err) {
+		console.error(err);
 	}
 	return [];
 }

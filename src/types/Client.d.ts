@@ -1,5 +1,5 @@
 type Client = {
-	username: string,
+	userId: number,
 	permissions: number,
 }
 

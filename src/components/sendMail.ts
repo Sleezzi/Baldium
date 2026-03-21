@@ -1,6 +1,10 @@
 import { mail } from "../index";
 import domino from "domino";
 
+/**
+ * Builds a consistent HTML mail layout by wrapping route-specific content
+ * with a shared header and footer.
+ */
 const content = (title: string, body: HTMLElement) => {
 	const document = domino.createDocument("<html></html>");
 	const container = document.createElement("div");
@@ -11,7 +15,7 @@ const content = (title: string, body: HTMLElement) => {
 	container.appendChild(header);
 
 	const titleElement = document.createElement("h1");
-	titleElement.innerText = title;
+	titleElement.textContent = title;
 	header.appendChild(titleElement);
 
 	const bodyElement = document.createElement("div");
@@ -24,21 +28,30 @@ const content = (title: string, body: HTMLElement) => {
 	container.appendChild(footer);
 
 	const dontreply = document.createElement("span");
-	dontreply.innerText = "This email was sent automatically, please do not reply to it.";
+	dontreply.textContent = "This email was sent automatically, please do not reply to it.";
 	footer.appendChild(dontreply);
 
 	const right = document.createElement("span");
-	right.innerText = "© 2026 Sleezzi Inc - All right reserved";
+	right.textContent = "© 2026 Sleezzi Inc - All right reserved";
 	footer.appendChild(right);
 
 	return container.innerHTML;
 }
 
-const sendMail = (to: string, object: string, body: HTMLElement) => mail.sendMail({
-	from: `"${process.env.MAIL_NAME}" <${process.env.MAIL}>`,
-	to: to,
-	subject: object,
-	html: content(object, body)
-});
+/**
+ * Sends an email using the configured SMTP transport and the shared HTML template.
+ */
+const sendMail = async (to: string, object: string, body: HTMLElement) => {
+	try {
+		await mail.sendMail({
+			from: `"${process.env.MAIL_NAME}" <${process.env.MAIL}>`,
+			to: to,
+			subject: object,
+			html: content(object, body)
+		});
+	} catch (err) {
+		console.error(err);
+	}
+};
 
 export default sendMail;

@@ -1,6 +1,6 @@
-import Docker from "dockerode";
+// import Docker from "dockerode";
 
-const docker = new Docker({ socketPath: "/var/run/docker.sock" });
-const container = docker.getContainer("minecraft-server");
+// const docker = new Docker({ socketPath: "/var/run/docker.sock" });
+// const container = docker.getContainer("minecraft-server");
 
-export default container;
+// export default container;

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { readFile } from "fs/promises";
 import { Socket } from "../../types/Route";
 import { ungzip } from "pako";
 import * as pnbt from "prismarine-nbt";
@@ -8,6 +8,7 @@ import { rcon } from "../../index";
 import simplifySNBT from "../../components/simplifySNBT";
 import Logs from "../../components/logs";
 import checkPermission from "../../components/permissions";
+import fsExist from "../../components/fsExist";
 
 type RawItem = {
 	count: number,
@@ -165,10 +166,10 @@ const getPlayerDataFromGame = async (username: string): Promise<PlayerData | { c
 const getPlayerDataFromFile = async (uuid: string): Promise<PlayerData | { code: number, message: string }> => {
 	try {
 		const path = `${process.env.SERVER_PATH}/world/playerdata/${uuid}.dat`;
-		if (!existsSync(path)) {
+		if (!await fsExist(path)) {
 			return { code: 404, message: "Player not found" };
 		}
-		const playerDataCompressed = readFileSync(path);
+		const playerDataCompressed = await readFile(path);
 		if (!playerDataCompressed) {
 			return { code: 500, message: "The server can't read the player's data" };
 		}
@@ -192,17 +193,17 @@ const getPlayerDataFromFile = async (uuid: string): Promise<PlayerData | { code:
 const route: Socket = async (client, args: string, reply) => {
 	try {
 		if (!checkPermission("players", client.permissions)) {
-			Logs(client.username, "The client attempted to access a player's information but does not have permission to", client.ip);
+			await Logs(client.userId, "The client attempted to access a player's information but does not have permission to", client.ip);
 			reply(403, "You can't access to this ressource");
 			return;
 		}
 		if (!args) {
-			Logs(client.username, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
+			await Logs(client.userId, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
 			reply(400, "Invalid player id");
 			return;
 		}
-		if (typeof args !== "string") {
-			Logs(client.username, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
+		if (typeof args !== "string" || args.includes("@")) {
+			await Logs(client.userId, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
 			reply(400, "Invalid player id");
 			return;
 		}
@@ -214,17 +215,17 @@ const route: Socket = async (client, args: string, reply) => {
 			const username = onlinesPlayers.find((_player, i) => onlinesPlayers[i + 1] === args);
 			
 			if (!username) {
-				Logs(client.username, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
+				await Logs(client.userId, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
 				reply(502, "Internal Error");
 				return;
 			}
 			const value = await getPlayerDataFromGame(username);
 			if ("code" in value && "message" in value) {
-				Logs(client.username, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
+				await Logs(client.userId, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
 				reply(502, "Internal Error");
 				return;
 			}
-			Logs(client.username, `The client attempted to access player information "${username}"`, client.ip);
+			await Logs(client.userId, `The client attempted to access player information "${username}"`, client.ip);
 			
 			reply(200, {
 				username: username,
@@ -260,22 +261,22 @@ const route: Socket = async (client, args: string, reply) => {
 		}
 
 		const path = `${process.env.SERVER_PATH}/usernamecache.json`;
-		if (!existsSync(path)) {
-			Logs(client.username, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
+		if (!await fsExist(path)) {
+			await Logs(client.userId, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
 			reply(501, "Internal Error");
 			return;
 		}
 		const file: {
 			[uuid: string]: string,
-		} = JSON.parse(readFileSync(path).toString());
+		} = JSON.parse((await readFile(path)).toString());
 
 		if (!(args in file)) {
-			Logs(client.username, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
+			await Logs(client.userId, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
 			reply(404, "Player not found");
 			return;
 		}
 		
-		Logs(client.username, `The client attempted to access player information "${file[args]}"`, client.ip);
+		await Logs(client.userId, `The client attempted to access player information "${file[args]}"`, client.ip);
 		reply(200, {
 			username: file[args],
 			inventory: value.Inventory,

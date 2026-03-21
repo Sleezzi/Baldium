@@ -1,25 +1,26 @@
 import { Socket } from "../../types/Route";
 import { rcon } from "../../index";
 
-import { existsSync, readFileSync } from "fs";
+import { stat, readFile } from "fs/promises";
 import Logs from "../../components/logs";
 import checkPermission from "../../components/permissions";
+import fsExist from "../../components/fsExist";
 
 const route: Socket = async (client, args, reply) => {
 	try {
 		if (!checkPermission("players", client.permissions)) {
-			Logs(client.username, "The client attempted to retrieve the list of players but does not have the necessary permissions.", client.ip);
+			await Logs(client.userId, "The client attempted to retrieve the list of players but does not have the necessary permissions.", client.ip);
 			reply(403, "You can't access to this ressource");
 			return;
 		}
 		const path = `${process.env.SERVER_PATH}/usernamecache.json`;
-		if (!existsSync(path)) {
+		if (!await fsExist(path)) {
 			reply(501, "Internal Error");
 			return;
 		}
 		const file: {
 			[uuid: string]: string,
-		} = JSON.parse(readFileSync(path).toString());
+		} = JSON.parse((await readFile(path)).toString());
 
 		const players: {
 			uuid: string,
@@ -41,7 +42,7 @@ const route: Socket = async (client, args, reply) => {
 			}
 			player.online = true;
 		}
-
+		await Logs(client.userId, "The client retrieved the list of players", client.ip);
 		reply(200, players);
 	} catch (err) {
 		console.error(err);

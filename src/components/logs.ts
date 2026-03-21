@@ -1,20 +1,21 @@
-import { appendFileSync, existsSync, mkdirSync, rmSync, statSync } from "fs";
+import { appendFile, mkdir } from "fs/promises";
 import MakeNumberMoreReadable from "./makeNumberMoreReadable";
 import IndexFolder from "./indexFolder";
+import fsExist from "./fsExist";
 
-function Logs(username: string, message: string, ip: string) {
+async function Logs(userId: number | null, message: string, ip: string) {
 	try {
-		if (!existsSync(process.env.LOGS_PATH!)) {
+		if (!await fsExist(process.env.LOGS_PATH!)) {
 			throw new Error("Missing the log's folder");
 		}
-		if (!existsSync(`${process.env.LOGS_PATH}/API`)) {
-			mkdirSync(`${process.env.LOGS_PATH}/API`);
+		if (!await fsExist(`${process.env.LOGS_PATH}/API`)) {
+			await mkdir(`${process.env.LOGS_PATH}/API`);
 		}
-		if (!existsSync(`${process.env.LOGS_PATH}/API/${username.toLowerCase()}`)) {
-			mkdirSync(`${process.env.LOGS_PATH}/API/${username.toLowerCase()}`);
+		if (!await fsExist(`${process.env.LOGS_PATH}/API/${userId || "Unknown"}`)) {
+			await mkdir(`${process.env.LOGS_PATH}/API/${userId || "Unknown"}`);
 		}
-		appendFileSync(
-			`${process.env.LOGS_PATH}/API/${username.toLowerCase()}/${MakeNumberMoreReadable(new Date().getDate())}-${MakeNumberMoreReadable(new Date().getMonth() + 1)}.log`,
+		await appendFile(
+			`${process.env.LOGS_PATH}/API/${userId || "Unknown"}/${MakeNumberMoreReadable(new Date().getDate())}-${MakeNumberMoreReadable(new Date().getMonth() + 1)}.log`,
 			`[${MakeNumberMoreReadable(new Date().getHours())}:${MakeNumberMoreReadable(new Date().getMinutes())}:${MakeNumberMoreReadable(new Date().getSeconds())}] | (${ip}) | ${message}\n`,
 		);
 	} catch (err) {

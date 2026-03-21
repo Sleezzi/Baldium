@@ -8,33 +8,25 @@ jest.mock("../../components/logs", () => ({
 	__esModule: true,
 	default: jest.fn()
 }));
-jest.mock("../../components/connections", () => ({
-	__esModule: true,
-	default: jest.fn()
-}));
 
 const route = require("./change-password-with-code.http");
 const Logs = require("../../components/logs");
 const queryAsync = require("../../components/queryAsync");
-const connections = require("../../components/connections");
-
 
 test("Changes the user's password when they receive a code by email after clicking \"Forgot my password\"", async () => {
-	const body = { email: "test@sleezzi.fr", code: "123456", password: "password1234" };
+	const body = { email: process.env.ACCOUNT_EMAIL, code: "123456", password: "password1234" };
 	queryAsync.default
-	.mockResolvedValueOnce(new Promise((resolve) => resolve([ { code: createHash("sha256").update(body.code).digest("hex"), attempts: 1, expireAt: Date.now() / 1000 + 1000 * 60 * 15 } ])))
-	.mockResolvedValueOnce(new Promise((resolve) => resolve([ { username: "sleezzi" } ])));
-	
-	// connections.default.mockResolvedValue(new Map());
+	.mockResolvedValueOnce([ { code: createHash("sha256").update(body.code).digest("hex"), attempts: 1, expireAt: Date.now() / 1000 + 1000 * 60 * 15 } ])
+	.mockResolvedValueOnce([ { id: process.env.ACCOUNT_ID } ]);
 	
 	Logs.default.mockResolvedValue();
 
-	await route.execute({ body }, {
-		status: (status) => {
-			expect(status).toBe(200);
-			return {
-				json: (response) => expect(response).toStrictEqual({ status, response: "Password changed" })
-			}
-		}
-	});
+	const response = {
+		status: jest.fn().mockReturnThis(),
+		json: jest.fn()
+	}
+
+	await route.execute({ body }, response);
+	expect(response.status).toHaveBeenCalledWith(200);
+	expect(response.status).toHaveBeenCalledWith({ status: 200, response: "Password changed" });
 });

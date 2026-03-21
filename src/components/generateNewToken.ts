@@ -1,11 +1,10 @@
 import { sign } from "jsonwebtoken";
 
-function generateNewToken(username: string, ) {
+function generateNewToken(userId: number) {
 	if (!process.env.SECRET_KEY) {
-		throw new Error("The secret key used for token generation is not defined. Add \"SECRET_KEY\" to the environment variables to define the secret key.");
-		return null;
+		throw new Error("The secret key used for encryption is missing. Add \"SECRET_KEY\" to the environment variables to define the secret key.");
 	}
-	return sign({ username: username }, process.env.SECRET_KEY, { expiresIn: 2629743 });
+	return sign({ userId: userId }, process.env.SECRET_KEY, { expiresIn: 2629743 });
 }
 
 

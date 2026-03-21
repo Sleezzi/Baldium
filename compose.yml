@@ -1,0 +1,139 @@
+# To understand how to properly fill out this file: https://wiki.sleezzi.fr/en/baldium/compose_yml
+
+services:
+  minecraft:
+    image: "itzg/minecraft-server:latest"
+    container_name: "minecraft-server"
+    tty: true
+    mem_limit: 5.5G
+    cpus: 3.5
+    stdin_open: true
+    ports:
+      - "25565:25565"
+    cap_drop:
+      - ALL
+    cap_add:
+      - "CHOWN"
+      - "FOWNER"
+      - "SETUID"
+      - "SETGID"
+    environment:
+      DIFFICULTY: "3"
+      ENABLE_COMMAND_BLOCK: "true"
+      ENABLE_RCON: "true"
+      ENABLE_ROLLING_LOGS: "true"
+      EULA: "TRUE"
+      FORCE_GAMEMODE: "true"
+      JVM_OPTS: "-Xmx5G -Xms512M"
+      LOG_TIMESTAMP: "true"
+      MEMORY: ""
+      MOTD: "§l§e§n/!\\§r §lAttention§r, ce serveur est en version §1BETA§r\\n§nIl sert de teste pour Baldium. Vos données §lne§r§n seront §lpas§r§n enregistré§r"
+      ONLINE_MODE: "false"
+      RCON_CMDS_LAST_DISCONNECT: |-
+        save-all flush
+      RCON_PASSWORD: "${RCON_PASSWORD}"
+      RCON_PORT: 25575
+      TYPE: "NEOFORGE"
+      TZ: "Europe/Paris"
+      VERSION: "1.21.11"
+      NEOFORGE_VERSION: "21.11.38"
+      UID: "1000"
+      GID: "1000"
+      SKIP_CHOWN_DATA: "true"
+    volumes:
+      - "minecraft:/data/"
+      - "logs:/data/logs"
+    restart: "unless-stopped"
+  db:
+    image: "mysql:latest"
+    container_name: "minecraft-db"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "Baldium"
+      MYSQL_USER: "sys"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    volumes:
+      - "database:/var/lib/mysql"
+      - "${PWD}/src/Database.sql:/docker-entrypoint-initdb.d/init.sql"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    ports:
+      - "30042:3306"
+    restart: "unless-stopped"
+  api:
+    build:
+      context: .
+      dockerfile: "Dockerfile"
+    image: "node:current-slim"
+    container_name: "minecraft-api"
+    volumes:
+      - "logs:/logs"
+      - "minecraft:/minecraft"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    depends_on:
+      - "minecraft"
+      - "db"
+    ports:
+      - "30040:80"
+      - "30041:81"
+    cap_drop:
+      - ALL
+    cap_add:
+      - MKNOD
+    environment:
+      SECRET_KEY: "${SECRET_KEY}" # This key is used during token generation and data encryption. It must absolutely remain secret.
+      MINECRAFT_IP: "minecraft" # The name of the container used for the Minecraft server. It allows connection to the server's RCON.
+      MINECRAFT_PORT: 25575 # The port used for RCON by the Minecraft server.
+      MINECRAFT_PASSWORD: "${MINECRAFT_PASSWORD}" # The login password for the RCON
+      VERSION: "1.21.11" # The version used by the Minecraft server
+      MODLOADER: "neoforge" # The modloader used by the Minecraft server
+      SERVER_PATH: "/minecraft" # The path used by the server
+      LOGS_PATH: "/logs" # The path used for logs
+      LOGS_LIFETIME: 30 # Log retention time in days.
+      TRUSTED_PROXY: 1
+      ALLOWED_ORIGIN: "http://localhost:5173 https://dash.play.sleezzi.fr"
+      DATABASE_USER: "sys" # The server's database user
+      DATABASE_HOST: "db" # The server's database host
+      DATABASE_NAME: "Baldium" # The server's database name
+      DATABASE_PASSWORD: "${DATABASE_PASSWORD}" # The server's database password
+      DATABASE_PORT: 3306 # The server's database port
+      MAIL: "donotreply@sleezzi.fr" # The email address that the server should use to send emails
+      MAIL_NAME: "Baldium" # The name the server should use to send emails. It will be used in the message subject line in the format "NAME - Subject".
+      MAIL_PASSWORD: "${MAIL_PASSWORD}" # The password that the server must use to send emails
+      MAIL_HOST: "ssl0.ovh.net" # The URL that the server should use to send emails
+      MAIL_PORT: 465 # The port that the server should use to send emails
+      CATVISOR: "http://cadvisor:8080/api/v1.3/containers/docker/minecraft-server" # The Cadvisor URL used to retrieve Minecraft server metrics
+    command: "node /Docker/dist/index.js"
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+    restart: "unless-stopped"
+  cadvisor:
+    image: "gcr.io/cadvisor/cadvisor"
+    container_name: "cadvisor"
+    cap_add:
+      - SYS_ADMIN
+      - SYS_RESOURCE
+    ports:
+      - "30043:8080"
+    devices:
+      - "/dev/kmsg"
+    volumes:
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:ro"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker/:/var/lib/docker:ro"
+      - "/dev/disk/:/dev/disk:ro"
+      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+    restart: "unless-stopped"
+volumes:
+  database:
+  minecraft:
+  logs:

@@ -1,7 +1,4 @@
-compose.yml
 dist
 node_modules
-mysql
-server
-logs
 .vscode
+.env

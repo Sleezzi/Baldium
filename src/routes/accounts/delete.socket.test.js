@@ -10,10 +10,6 @@ jest.mock("../../components/sendMail", () => ({
 	__esModule: true,
 	default: jest.fn()
 }));
-jest.mock("../../components/connections", () => ({
-	__esModule: true,
-	default: jest.fn()
-}));
 
 const route = require("./delete.socket");
 const Logs = require("../../components/logs");
@@ -23,19 +19,21 @@ const connections = require("../../components/connections");
 
 
 test("Delete a user account", async () => {
-	const account = { username: "sleezzi", email: "test@sleezzi.fr" };
+	const account = { id: process.env.ACCOUNT_ID, username: process.env.ACCOUNT_USERNAME, email: process.env.ACCOUNT_EMAIL };
 	queryAsync.default
-	.mockResolvedValueOnce(new Promise((resolve) => resolve([ account ])))
-	.mockResolvedValueOnce(new Promise((resolve) => resolve(null)));
+	.mockResolvedValueOnce([ account ])
+	.mockResolvedValueOnce(null);
 	
 	Logs.default.mockResolvedValue();
 
 	sendMail.default.mockResolvedValue();
-	connections.default.mockResolvedValue({ delete: () => {} });
+	
+	const response = jest.fn();
 
 	await route({
-		username: account.username,
-		permissions: 8,
-		ip: "192.168.0.1"
-	}, null, (status, response) => expect({ status, response }).toStrictEqual({ status: 200, response: "Success" }));
+		userId: account.id,
+		permissions: process.env.ACCOUNT_PERMISSION,
+		ip: process.env.ACCOUNT_IP
+	}, null, response);
+	expect(response).toHaveBeenCalledWith(200, "Success");
 });

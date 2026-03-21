@@ -7,6 +7,6 @@
 		"moduleResolution": "node",
 		"esModuleInterop": true
 	},
-	"include": ["src", "tsconfig.json", "builder.js"],
+	"include": ["src", "tsconfig.json", "builder.js", "src/types/Express.d.ts", "test.js"],
 	"exclude": ["node_modules", "dist"]
 }

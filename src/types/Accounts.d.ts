@@ -13,6 +13,7 @@ export type Ips = {
 }
 
 type Account = {
+	id: string,
 	username: string,
 	email: string,
 	hash: string,
