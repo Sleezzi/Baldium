@@ -35,7 +35,16 @@ const route: HTTP<{
 		const hashs: { id: number, username: string, email: string, hash: string }[] = await queryAsync("SELECT id, username, email, hash FROM accounts WHERE username = ? OR email = ?", body.id.toLowerCase(), body.id.toLowerCase()) as any;
 		if (hashs.length === 0) {
 			await Logs(null, "The client attempted to log in, but their account was not found in the database", request.ip);
-			return response.status(401).send({
+			return response
+			.status(401)
+			.setCookie(
+				"token",
+				"",
+				{
+					maxAge: 0
+				}
+			)
+			.send({
 				status: 401,
 				response: "This accounts doesn't not exist"
 			});
@@ -44,7 +53,16 @@ const route: HTTP<{
 		const isValid = await compare(body.password, hashs[0].hash);
 		if (!isValid) {
 			await Logs(hashs[0].id, "The client attempted to log in, but the password they provided is not the same as the one in the database", request.ip);
-			return response.status(403).send({
+			return response
+			.setCookie(
+				"token",
+				"",
+				{
+					maxAge: 0
+				}
+			)
+			.status(403)
+			.send({
 				status: 403,
 				response: "Invalid password"
 			});

@@ -73,24 +73,3 @@ BEGIN
 		ON DUPLICATE KEY UPDATE id = NEW.discord;
 	END IF;
 END$$
-
--- WITH RECURSIVE dep_tree AS (
--- 	-- Point de départ : les dépendances directes
--- 	SELECT dependency_id, dep_type, 1 AS depth
--- 	FROM mod_dependencies
--- 	WHERE mod_id = '9eGKb6K1'
-
--- 	UNION ALL
-
--- 	-- Récursion : les dépendances des dépendances
--- 	SELECT d.dependency_id, d.dep_type, dt.depth + 1
--- 	FROM mod_dependencies d
--- 	JOIN dep_tree dt ON d.mod_id = dt.dependency_id
--- )
--- SELECT DISTINCT dep_tree.dependency_id, mods.version, dep_tree.dep_type, dep_tree.depth
--- FROM dep_tree
--- JOIN mods ON mods.id = dep_tree.dependency_id
--- ORDER BY dep_tree.depth;
-
-
-SELECT access_token FROM discord WHERE id = 542703093981380628 LIMIT;
