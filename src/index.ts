@@ -12,58 +12,27 @@ if (!process.env.SECRET_KEY) {
 
 import { join } from "path";
 import { WebSocketServer } from "ws";
-import express, { Express,  type Request, type Response } from "express";
-import cors from "cors";
-import * as mysql from "mysql2";
-import Rcon from "./components/rcon";
-import Indexer from "./components/indexFolder";
+import Indexer from "./components/files/indexer";
 import queryAsync from "./components/queryAsync";
 
-import type Message from "./types/Message";
-import Channel from "./types/Channel";
+import type Message from "../types/Message";
+import "./components/docker";
 import Logs from "./components/logs";
 import { Trigger, UnsubscribeClient } from "./components/subscription";
-import nodemailer from "nodemailer";
-import { HTTP, Socket } from "./types/Route";
-import { createHmac } from "crypto";
+import Fastify, { FastifyPluginAsync } from "fastify";
+import type { HTTP, Socket } from "../types/Route";
 import connections from "./components/connections";
-import verifyIP from "./components/verifyIP";
-import auth from "./components/auth";
-import Middleware from "./types/Middleware";
-
-export const db = mysql.createPool({
-	host: process.env.DATABASE_HOST,
-	user: process.env.DATABASE_USER,
-	password: process.env.DATABASE_PASSWORD,
-	database: process.env.DATABASE_NAME,
-	waitForConnections: true,
-	connectionLimit: 3,
-	queueLimit: 0
-});
-
-export const rcon = new Rcon({
-	host: process.env.MINECRAFT_IP || "localhost",
-	password: process.env.MINECRAFT_PASSWORD || "",
-	port: process.env.MINECRAFT_PORT as any || 25565,
-});
-
-export const mail = nodemailer.createTransport({
-	host: process.env.MAIL_HOST,
-	port: process.env.MAIL_PORT,
-	secure: true,
-	auth: {
-		user: process.env.MAIL,
-		pass: process.env.MAIL_PASSWORD
-	}
-} as any);
+import { authenticate } from "./components/account";
+import { decipher } from "./components/crypt";
+import type Client from "../types/Client";
 
 // Stores socket routes indexed by their URI-like key (e.g. "accounts/about").
 const routes = new Map<string, Socket>();
-
 const wss = new WebSocketServer({ port: process.env.WEBSOCKET_PORT as any || 81 });
-const http = express();
 
-http.set("trust proxy", process.env.TRUSTED_PROXY);
+const http = Fastify({
+	trustProxy: !!process.env.TRUSTED_PROXY,
+});
 
 /**
  * Bootstraps middleware, background channels, and HTTP/WebSocket routes by
@@ -75,32 +44,14 @@ http.set("trust proxy", process.env.TRUSTED_PROXY);
 		.filter((file) => file.type === "file" && file.path.endsWith(".js"))
 		.map((file) => file.path)
 	) {
-		const middleware: Middleware = require(path);
+		const middleware: FastifyPluginAsync = require(path);
 		if (!middleware) {
 			console.warn(`Missing export.defaults in ${path}`);
 			continue;
 		}
-		http.use(middleware);
-		
-		console.log(`Middleware "${path}" instancied`);
-	}
+		await http.register(middleware);
 
-	for (const path of
-		(await Indexer(join(__dirname, "./channels")))
-		.filter((file) => file.type === "file" && file.path.endsWith(".js"))
-		.map((file) => file.path)
-	) {
-		const channel: Channel = require(path);
-		if (!channel) {
-			console.warn(`Missing export.defaults in ${path}`);
-			continue;
-		}
-		
-		if (!("name" in channel)) continue;
-		if (!("execute" in channel)) continue;
-		channel.execute();
-		
-		console.log(`Channel "${channel.name}" instancied`);
+		console.log(`Middleware "${path}" instancied`);
 	}
 
 	for (const path of
@@ -128,14 +79,20 @@ http.set("trust proxy", process.env.TRUSTED_PROXY);
 			continue;
 		}
 		const uri = route.uri || path.slice(join(__dirname, "./routes").length, -".http.js".length);
-		http[route.method.toLowerCase() as keyof Express](uri, (request: Request, response: Response) => {
-			route.execute(
-				request as any,
-				response
-			);
+		
+		http.route({
+			method: route.method,
+			url: uri,
+			schema: route.schema,
+			preHandler: route.prehandler,
+			handler: route.handler
 		});
 		console.log(`Route "${uri}" instancied in http`);
 	}
+
+	const port = Number(process.env.HTTP_PORT) || 80;
+	await http.listen({ port, host: "0.0.0.0" });
+	console.log(`Server HTTP ready on port ${port}`);
 })();
 
 /**
@@ -163,21 +120,19 @@ wss.on("connection", async (ws, req) => {
 		}
 		// Extracts client IP from trusted proxy headers with socket fallback.
 		const ip = ((): string | null => {
-			if (req.headers['cf-connecting-ip']) return req.headers['cf-connecting-ip'] as string;
-			if (req.headers['x-forwarded-for']) return (req.headers['x-forwarded-for'] as string).split(',')[0] as string;
+			if (req.headers['cf-connecting-ip']) return req.headers['cf-connecting-ip'].toString();
+			if (req.headers['x-forwarded-for']) return req.headers['x-forwarded-for'].toString().split(',')[0];
 			if (req.socket.remoteAddress) return req.socket.remoteAddress;
 			return null;
-		})()!;
-		
-		const ipdata = await verifyIP(ip);
-
-		if (!ipdata || !ipdata.isAllowed) { // Check if the server can see the client's IP address.
-			reply(403, "The server is unable to see your IP address. The server cannot accept clients that mask their IP address. The problem may be with your device, the browser you are using, or your internet service provider.", "handshake");
-			ws.close(); // Close the connection
+		})();
+		if (!ip) {
+			Logs(null, "A WebSocket connection was blocked because the server failed to retrieve the connection's IP address.", "0");
+			ws.close();
 			return;
 		}
+		
 		// First websocket frame must be an "auth" message. This promise gates route handling.
-		const userId = await new Promise<number>((resolve, error) => {
+		const client = await new Promise<Client>((resolve, error) => {
 			const timeout = setTimeout(() => {
 				ws.close();
 				error();
@@ -198,12 +153,12 @@ wss.on("connection", async (ws, req) => {
 						error();
 						return;
 					}
-					const isValid = await auth(message.args);
+					const isValid = await authenticate(message.args);
 					if (!isValid.success) {
 						switch (isValid.message) {
 							case "INVALID_TOKEN":
 								await Logs(null, "The handcheck with this client and server failed because the client provided an invalid token.", ip!);
-								reply(403, "Invalid token", message.request, message.id);
+								reply(401, "Invalid token", message.request, message.id);
 								break;
 							case "MISSING_PAYLOAD":
 								await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
@@ -226,27 +181,26 @@ wss.on("connection", async (ws, req) => {
 						return;
 					}
 					const _userId = isValid.message;
-					const ips = await queryAsync( // Retrieves the IPs with which the client has already connected and filters with the current IP, browser and OS of the user.
-						"SELECT * FROM user_ip WHERE userId = ? AND ip_hash = ? LIMIT 1",
-						_userId,
-						createHmac("sha256", process.env.SECRET_KEY!).update(ip).digest("hex"), // In the database, user IP addresses are hashed to comply with GDPR and as a security measure.
-					);
 					
-					if (ips.length === 0) { // If the user logs in from a new browser, a new IP address, or a new device
-						await Logs(_userId, "The handcheck with this client and server failed because the client connected from a new IP address.", ip!);
-						reply(403, "You tried to connect using a new IP address.", message.request, message.id);
-						ws.close();
-						error();
-						return;
-					}
-					const account: { id: number, permissions: number }[] = await queryAsync("SELECT permissions FROM accounts WHERE id = ? LIMIT 1", _userId);
-					if (account.length === 0) {
+					const accounts: { id: number, username: string, permissions: number, discord: number }[] = await queryAsync("SELECT username, permissions, discord FROM accounts WHERE id = ? LIMIT 1", _userId);
+					if (accounts.length === 0) {
 						await Logs(_userId, "The handcheck with this client and server failed because the client connected from a new IP address.", ip!);
 						reply(403, "It appears that your account has been deleted.", message.request, message.id);
 						ws.close();
 						error();
 						return;
 					}
+					const account = accounts[0];
+
+					let discord: string | null = null;
+					if (account.discord !== null) {
+						const tokens: { id: number, access_token: string }[] = await queryAsync("SELECT access_token FROM discord WHERE id = ?", account.discord);
+						
+						if (tokens.length > 0) {
+							discord = decipher(tokens[0].access_token);
+						}
+					}
+
 					if (connections.has(_userId)) { // Checks if the user has already connected to the server
 						connections.get(_userId)!.close("You logged in from another location"); // Disconnect the user's old connection
 					}
@@ -269,10 +223,19 @@ wss.on("connection", async (ws, req) => {
 								object: object,
 							}));
 						},
-						permissions: account[0].permissions
+						permissions: account.permissions
 					});
-					reply(200, { userId: _userId, permissions: account[0].permissions }, message.request, message.id);
-					resolve(_userId);
+					reply(200, {
+						userId: _userId,
+						username: account.username,
+						permissions: account.permissions,
+						discord: discord
+					}, message.request, message.id);
+					resolve({
+						userId: _userId,
+						permissions: account.permissions,
+						discord: account.discord
+					});
 				} catch (err) {
 					console.error(err);
 					error();
@@ -288,23 +251,22 @@ wss.on("connection", async (ws, req) => {
 					return;
 				}
 				if (message.request === "auth") return;
-				if (!userId || !connections.has(userId)) {
+				if (!client.userId || !connections.has(client.userId)) {
 					await Logs(null, "The client sent a message to the server when the server wasn't ready.", ip);
 					reply(501, "The server is not ready", message.request, message.id);
 					return;
 				}
 				if (!routes.has(message.request)) {
-					await Logs(userId, "\nThe client sent a message to the server requesting a route that does not exist.", ip);
+					await Logs(client.userId, "The client sent a message to the server requesting a route that does not exist.", ip);
 					reply(404, "Invalid route", message.request, message.id);
 					return;
 				}
 				const route = routes.get(message.request)!;
 				
-				await Logs(userId, `\nThe client sent a message to the server requesting the route ${message.request}. It was therefore correctly redirected to it.`, ip);
+				await Logs(client.userId, `The client sent a message to the server requesting the route ${message.request}. It was therefore correctly redirected to it.`, ip);
 				route(
 					{
-						userId: userId,
-						permissions: connections.get(userId)!.permissions,
+						...client,
 						ip: ip,
 					},
 					message.args,
@@ -316,18 +278,17 @@ wss.on("connection", async (ws, req) => {
 		});
 		ws.once("close", () => {
 			try {
-				if (!userId) return;
-				UnsubscribeClient(userId);
-				connections.delete(userId);
+				if (!client.userId) return;
+				UnsubscribeClient(client.userId);
+				connections.delete(client.userId);
+				Logs(client.userId, "The client has disconnected from the WebSocket", ip);
 			} catch (err) {
 				console.error(err);
 			}
 		});
 	} catch (err) {
-		console.error(err);
+		console.error(`err@@@`, err);
 	}
 });
 
-
-http.listen(process.env.HTTP_PORT as any || 80, "0.0.0.0", () => console.log(`Server HTTP ready on port ${process.env.HTTP_PORT || 80}`));
 wss.once("listening", () => console.log(`WebSocket ready on port ${process.env.WEBSOCKET_PORT || 81}`));

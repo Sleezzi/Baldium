@@ -1,11 +1,11 @@
 import queryAsync from "../../components/queryAsync";
 import Logs from "../../components/logs";
-import { Socket } from "../../types/Route";
+import { Socket } from "../../../types/Route";
 
 
 const route: Socket = async (client, args: null, reply) => {
 	try {
-		const mods = await queryAsync("SELECT id, name, version FROM mods");
+		const mods = await queryAsync("SELECT id, version FROM mods");
 		
 		await Logs(client.userId, "The client retrieved the list of mods", client.ip);
 		reply(200, mods);

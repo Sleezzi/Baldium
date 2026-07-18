@@ -1,194 +1,14 @@
 import { readFile } from "fs/promises";
-import { Socket } from "../../types/Route";
+import { Socket } from "../../../types/Route";
 import { ungzip } from "pako";
 import * as pnbt from "prismarine-nbt";
 import * as nbtTS from "nbt-ts";
 
-import { rcon } from "../../index";
-import simplifySNBT from "../../components/simplifySNBT";
+import rcon from "../../components/rcon";
 import Logs from "../../components/logs";
-import checkPermission from "../../components/permissions";
-import fsExist from "../../components/fsExist";
+import { checkPermission } from "../../components/account";
+import fsExist from "../../components/files/fsExist";
 
-type RawItem = {
-	count: number,
-	Slot: number,
-	id: string,
-	components?: {
-		[component: string]: any
-	}
-}
-
-type PlayerData = {
-	equipment: {
-		head: RawItem | null,
-		chest: RawItem | null,
-		legs: RawItem | null,
-		feet: RawItem | null,
-		offhand: RawItem | null,
-	},
-	Inventory: RawItem[],
-	Dimension: string,
-	EnderItems: RawItem[],
-	Tags?: string[],
-	Health: number,
-	foodLevel: number,
-	LastDeathLocation?: {
-		dimension: string,
-		pos: number[]
-	},
-	XpLevel: number,
-	XpP: number,
-	active_effects?: {
-		id: string,
-		duration: number,
-		amplifier: string
-	}[]
-}
-
-const getPlayerDataFromGame = async (username: string): Promise<PlayerData | { code: number, message: string }> => {
-	try {
-		const datasToFetch = [
-			"Dimension",
-			"Tags",
-			"Health",
-			"foodLevel",
-			"LastDeathLocation",
-			"XpLevel",
-			"XpP",
-			"active_effects"
-		]
-		const fetchedData: any = {
-			Inventory: [],
-			EnderItems: [],
-			equipment: {}
-		};
-
-		for (const data of datasToFetch) {
-			const rawData = await rcon.send(`data get entity ${username} ${data}`);
-			if (rawData === "No entity was found") {
-				break;
-			}
-			if (rawData.startsWith(`Found no elements matching `)) {
-				continue;
-			}
-			const parsedData: any = nbtTS.parse(rawData.split(username)[1].slice(" has the following entity data: ".length));
-			const value = simplifySNBT(parsedData);
-			fetchedData[data] = value;
-		}
-
-		for (const part of ["head","chest","legs","feet","offhand"]) {
-			const rawData = await rcon.send(`data get entity ${username} equipment.${part}`);
-			if (rawData === "No entity was found") {
-				break;
-			}
-			if (rawData.startsWith(`Found no elements matching`)) {
-				fetchedData[part] = null;
-				continue;
-			}
-			
-			try {
-				const parsedData: any = nbtTS.parse(rawData.split(username)[1].slice(" has the following entity data: ".length));
-				const value = simplifySNBT(parsedData);
-				fetchedData.equipment[part] = value;
-			} catch (err) {
-				const itemName = (await rcon.send(`data get entity ${username} equipment.${part}.id`)).split(username)[1].slice(" has the following entity data: ".length)
-				fetchedData.equipment[part] = {
-					count: 1,
-					id: itemName,
-					components: {
-						"custom:error": "Unable to retrieve data corresponding to this item"
-					}
-				};
-			}
-		}
-
-		for (let index = 0; index < 40; index++) {
-			const rawData = await rcon.send(`data get entity ${username} Inventory[${index}]`);
-			if (rawData === "No entity was found") {
-				break;
-			}
-			if (rawData === `Found no elements matching Inventory[${index}]\n`) {
-				continue;
-			}
-			
-			try {
-				const parsedData: any = nbtTS.parse(rawData.split(username)[1].slice(" has the following entity data: ".length));
-				const value = simplifySNBT(parsedData);
-				fetchedData.Inventory.push(value);
-			} catch (err) {
-				const itemName = (await rcon.send(`data get entity ${username} Inventory[${index}].id`)).split(username)[1].slice(" has the following entity data: ".length)
-				fetchedData.Inventory.push({
-					count: 1,
-					Slot: index,
-					id: itemName,
-					components: {
-						"custom:error": "Unable to retrieve data corresponding to this item"
-					}
-				});
-			}
-		}
-
-		for (let index = 0; index < 27; index++) {
-			const rawData = await rcon.send(`data get entity ${username} EnderItems[${index}]`);
-			if (rawData === "No entity was found") {
-				break;
-			}
-			if (rawData === `Found no elements matching EnderItems[${index}]\n`) {
-				continue;
-			}
-			try {
-				const parsedData: any = nbtTS.parse(rawData.split(username)[1].slice(" has the following entity data: ".length));
-				const value = simplifySNBT(parsedData);
-				fetchedData.EnderItems.push(value);
-			} catch (err) {
-				const itemName = (await rcon.send(`data get entity ${username} EnderItems[${index}].id`)).split(username)[1].slice(" has the following entity data: ".length)
-				fetchedData.EnderItems.push({
-					count: 1,
-					Slot: index,
-					id: itemName,
-					components: {
-						"custom:error": "Unable to retrieve data corresponding to this item"
-					}
-				});
-			}
-		}
-
-		return fetchedData;
-	} catch (err) {
-		console.error(err);
-		return {
-			code: 502,
-			message: "Internal Error"
-		};
-	}
-}
-const getPlayerDataFromFile = async (uuid: string): Promise<PlayerData | { code: number, message: string }> => {
-	try {
-		const path = `${process.env.SERVER_PATH}/world/playerdata/${uuid}.dat`;
-		if (!await fsExist(path)) {
-			return { code: 404, message: "Player not found" };
-		}
-		const playerDataCompressed = await readFile(path);
-		if (!playerDataCompressed) {
-			return { code: 500, message: "The server can't read the player's data" };
-		}
-		
-		const playerDataUncompressed = ungzip(playerDataCompressed);
-		const buffer = Buffer.from(playerDataUncompressed);
-		const { parsed } = await pnbt.parse(buffer);
-		const value = pnbt.simplify(parsed) || parsed.value;
-
-		if (!value) {
-			return { code: 502, message: "Internal Error" };
-		}
-
-		return value;
-	} catch (err) {
-		console.error(err);
-		return { code: 502, message: "Internal Error" };
-	}
-}
 
 const route: Socket = async (client, args: string, reply) => {
 	try {
@@ -212,73 +32,54 @@ const route: Socket = async (client, args: string, reply) => {
 		
 		const isOnline = onlinesPlayers.find((player) => player === args);
 		if (isOnline) {
-			const username = onlinesPlayers.find((_player, i) => onlinesPlayers[i + 1] === args);
-			
-			if (!username) {
-				await Logs(client.userId, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
-				reply(502, "Internal Error");
-				return;
-			}
-			const value = await getPlayerDataFromGame(username);
-			if ("code" in value && "message" in value) {
-				await Logs(client.userId, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
-				reply(502, "Internal Error");
-				return;
-			}
-			await Logs(client.userId, `The client attempted to access player information "${username}"`, client.ip);
-			
-			reply(200, {
-				username: username,
-				inventory: value.Inventory,
-				equipments: value.equipment,
-				dimension: value.Dimension,
-				enderchest: value.EnderItems,
-				tags: value.Tags,
-				health: value.Health,
-				food: value.foodLevel,
-				death: value.LastDeathLocation ? {
-					dimension: value.LastDeathLocation.dimension,
-					position: {
-						x: value.LastDeathLocation.pos[0],
-						y: value.LastDeathLocation.pos[1],
-						z: value.LastDeathLocation.pos[2]
-					}
-				} : null,
-				level: {
-					level: value.XpLevel,
-					percentage: Math.floor(value.XpP * 100)
-				},
-				online: true,
-				effects: value.active_effects ? value.active_effects.map((effect: { id: string, duration: number, amplifier: string }) => ({ id: effect.id, duration: effect.duration === -1 ? "infinite" : effect.duration, level: effect.amplifier})) : []
-			});
-			return;
+			await rcon.send("save-all flush");
 		}
 		
-		const value = await getPlayerDataFromFile(args);
-		if ("code" in value && "message" in value) {
-			reply(value.code, value.message);
+		const playerdata = `${process.env.SERVER_PATH}/world/playerdata/${args}.dat`;
+		if (!await fsExist(playerdata)) {
+			reply(404, "Player not found");
+			return;
+		}
+		const playerDataCompressed = await readFile(playerdata);
+		if (!playerDataCompressed) {
+			reply(500, "The server can't read the player's data");
+		}
+		
+		const playerDataUncompressed = ungzip(playerDataCompressed);
+		const buffer = Buffer.from(playerDataUncompressed);
+		const { parsed } = await pnbt.parse(buffer);
+		const value = pnbt.simplify(parsed) || parsed.value;
+
+		if (!value) {
+			reply(502, "Internal Error");
 			return;
 		}
 
-		const path = `${process.env.SERVER_PATH}/usernamecache.json`;
+		const path = `${process.env.SERVER_PATH}/usercache.json`;
 		if (!await fsExist(path)) {
 			await Logs(client.userId, "The client attempted to access a player's information, but the server encountered an error.", client.ip);
 			reply(501, "Internal Error");
 			return;
 		}
+		
 		const file: {
-			[uuid: string]: string,
-		} = JSON.parse((await readFile(path)).toString());
+			uuid: string,
+			name: string,
+			expiresOn: string
+		}[] = JSON.parse((await readFile(path)).toString());
 
-		if (!(args in file)) {
+		console.log(file);
+		const player = file.find((player) => player.uuid === args);
+
+		if (!player) {
 			await Logs(client.userId, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
 			reply(404, "Player not found");
 			return;
 		}
 		
-		await Logs(client.userId, `The client attempted to access player information "${file[args]}"`, client.ip);
+		await Logs(client.userId, `The client attempted to access player information "${player.name}"`, client.ip);
 		reply(200, {
-			username: file[args],
+			username: player.name,
 			inventory: value.Inventory,
 			equipments: value.equipment,
 			dimension: value.Dimension,
@@ -298,7 +99,7 @@ const route: Socket = async (client, args: string, reply) => {
 				level: value.XpLevel,
 				percentage: Math.floor(value.XpP * 100)
 			},
-			online: false,
+			online: isOnline,
 			effects: value.active_effects ? value.active_effects.map((effect: { id: string, duration: number, amplifier: string }) => ({ id: effect.id, duration: effect.duration === -1 ? "infinite" : effect.duration, level: effect.amplifier})) : []
 		});
 	} catch (err) {

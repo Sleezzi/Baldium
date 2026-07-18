@@ -1,14 +1,15 @@
-import { Socket } from "../../types/Route";
-import checkPermission from "../../components/permissions";
+import { Socket } from "../../../types/Route";
+import { checkPermission } from "../../components/account";
 import { Trigger } from "../../components/subscription";
+import * as docker from "../../components/docker";
 
 const route: Socket = async (client, args, reply) => {
 	try {
-		if (checkPermission("server", client.permissions)) {
+		if (!checkPermission("server", client.permissions)) {
 			reply(403, "You can't access to this ressource");
 			return;
 		}
-		// await docker.restart();
+		await docker.sendAction("Restart");
 		
 		reply(200, "Restarting");
 		Trigger("server_status", "restarted");

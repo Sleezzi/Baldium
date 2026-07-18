@@ -1,18 +1,18 @@
 # Baldium
+Easily manage your Minecraft server with Baldium, a powerful and intuitive dashboard that lets you handle mods, players, files, and configuration.
 
-Baldium est un projet français et Open Source. Il est composé d'un dashboard et d'une API. L'API est relié à un serveur Minecraft, le dashboard se connecte ensuite à l'API avec un WebSocket. Les administrateurs de serveur Minecraft peuvent ainsi gérer plus facilement les joueurs, les fichiers, les mods du serveur ainsi que de grader un suivit des performances du serveur.
-
-Le tous est fait pour tourner sur Docker.
+Baldium is a French open-source project consisting of an API that connects to the Minecraft server via RCON and to Docker via the socket.
 
 ## Installation
 ```
 git clone https://github.com/Sleezzi/Baldium.git
 ```
-## Lancement
-Avant de lancer l'api, veiller a compléter le fichier ***.env*** (variables sensibles). Ensuite, vérifiez le contenu de ***compose.yml***. Vous pouvez suivre la [documentation](https://wiki.sleezzi.fr/baldium/compose.yml) pour vous aider.
+## Launching
+Before starting the API, make sure to fill in the ***.env*** file (sensitive variables). Then, check the contents of ***compose.yml***. You can refer to the [documentation](https://wiki.sleezzi.fr/baldium/compose.yml) for assistance.
+Finally, simply run the following command:
 ```
 docker compose up -d
 ```
 
 ## Contact
-Si vous avez un problème vous pouvez me contacter a [contact@sleezzi.fr](mailto:contact@sleezzi.fr), si vous trouvez un bug merci de le signaler [ici](https://github.com/Sleezzi/Baldium/issues)
+If you encounter any issues, you can contact us at [contact@sleezzi.fr](mailto:contact@sleezzi.fr) or via [Discord](https://sleezzi.fr/discord). If you find a bug, please report it [here](https://github.com/Sleezzi/Baldium/issues).

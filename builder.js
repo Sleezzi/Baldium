@@ -31,23 +31,21 @@ const navigate = async (path) => {
 	for (const file of await readdir(path, { withFileTypes: true })) {
 		const pathFile = `${path.replace(src, "")}/${file.name}`;
 
-		let filtred = false;
+		let isFiltred = false;
 		for (const filter of filters) {
 			if (typeof filter === "string") {
-				if (filter.replace(src, "") === pathFile) filtred = true;
+				if (filter.replace(src, "") === pathFile) isFiltred = true;
 			}
 			if (typeof filter === "object") {
 				if (!"test" in filter) {
 					throw new Error("Invalid filter:", filter, "\nA valid filter is a string or a RegExp");
 				}
-				if (filter.test(pathFile)) {
-					filtred = true;
-				}
+				if (filter.test(pathFile)) isFiltred = true;
 			}
 		}
 		
-		if (filtred) continue;
-		
+		if (isFiltred) continue;
+
 		if (file.isDirectory()) {
 			await mkdir(`${dist.replace(/\/$/, "")}/${pathFile}`);
 			output.directories += 1;

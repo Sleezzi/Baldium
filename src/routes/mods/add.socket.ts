@@ -1,11 +1,50 @@
-import { join } from "path";
-import { Socket } from "../../types/Route";
-import { stat, mkdir, readFile, rm, writeFile } from "fs/promises";
+import { Socket } from "../../../types/Route";
 import queryAsync from "../../components/queryAsync";
-import Download from "../../components/download";
 import Logs from "../../components/logs";
-import getMod from "../../components/downloadMod";
-import checkPermission from "../../components/permissions";
+import { checkPermission } from "../../components/account";
+import Mod from "../../components/mods";
+import { Trigger } from "../../components/subscription";
+
+const downloadMod = async (mod: Mod) => {
+	const exist = await queryAsync("SELECT * FROM mods WHERE id = ?", mod.id);
+
+	if (exist.length > 0) {
+		return;
+	}
+
+	await mod.init();
+	if (!mod.latest) {
+		return;
+	}
+	
+	Trigger("mods", {
+		message: "new",
+		mod: mod.id,
+		args: {
+			name: mod.latest!.name,
+			version: mod.latest!.version_number
+		}
+	});
+	// await mod.download(mod.latest, (file) => Trigger("mods", {
+	// 	message: "download",
+	// 	mod: mod.id,
+	// 	args: {
+	// 		current: file,
+	// 		goal: mod.latest!.files.length
+	// 	}
+	// }));
+
+	await queryAsync(
+		"INSERT INTO mods (id, version) VALUES (?, ?)",
+		mod.id,
+		mod.latest.version_number
+	);
+
+	for (const dependance of mod.dependancies(mod.latest)) {
+		await queryAsync("INSERT INTO mod_dependencies (mod_id, depend_on_id) VALUES (?, ?)", mod.id, dependance.id);
+		await downloadMod(dependance);
+	}
+}
 
 
 const route: Socket = async (client, args: string, reply) => {
@@ -25,8 +64,10 @@ const route: Socket = async (client, args: string, reply) => {
 			reply(400, "Invalid id");
 			return;
 		}
-		
-		getMod(client, args, reply);
+
+		const mod = new Mod(args);
+		downloadMod(mod);
+		reply(200, "Success");
 	} catch (err) {
 		console.error(err);
 		reply(500, "Internal error");

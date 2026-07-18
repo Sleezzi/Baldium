@@ -1,8 +1,8 @@
 import { stat, readdir } from "fs/promises";
-import { Socket } from "../../types/Route";
+import { Socket } from "../../../types/Route";
 import Logs from "../../components/logs";
-import checkPermission from "../../components/permissions";
-import fsExist from "../../components/fsExist";
+import { checkPermission } from "../../components/account";
+import fsExist from "../../components/files/fsExist";
 
 const hiddens = [
 	// "*.env", // Already filtred
@@ -26,7 +26,7 @@ const route: Socket = async (client, args: string, reply) => {
 		}
 		if (args.includes("./")) {
 			await Logs(client.userId, `The client attempted to list files from a folder but did not provide a path\n /!\\ The path "${args}" contained ./ which likely means the user attempted to view files outside the server folder`, client.ip);
-			reply(404, "File not found");
+			reply(404, "Folder not found");
 			return;
 		}
 		

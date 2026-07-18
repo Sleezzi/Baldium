@@ -1,5 +1,15 @@
-import { mail } from "../index";
 import domino from "domino";
+import nodemailer from "nodemailer";
+
+const mail = nodemailer.createTransport({
+	host: process.env.MAIL_HOST,
+	port: process.env.MAIL_PORT,
+	secure: true,
+	auth: {
+		user: process.env.MAIL,
+		pass: process.env.MAIL_PASSWORD
+	}
+} as any);
 
 /**
  * Builds a consistent HTML mail layout by wrapping route-specific content

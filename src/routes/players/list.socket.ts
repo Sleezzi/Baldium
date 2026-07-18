@@ -1,10 +1,10 @@
-import { Socket } from "../../types/Route";
-import { rcon } from "../../index";
+import { Socket } from "../../../types/Route";
+import rcon from "../../components/rcon";
 
 import { stat, readFile } from "fs/promises";
 import Logs from "../../components/logs";
-import checkPermission from "../../components/permissions";
-import fsExist from "../../components/fsExist";
+import { checkPermission } from "../../components/account";
+import fsExist from "../../components/files/fsExist";
 
 const route: Socket = async (client, args, reply) => {
 	try {
@@ -13,20 +13,21 @@ const route: Socket = async (client, args, reply) => {
 			reply(403, "You can't access to this ressource");
 			return;
 		}
-		const path = `${process.env.SERVER_PATH}/usernamecache.json`;
+		const path = `${process.env.SERVER_PATH}/usercache.json`;
 		if (!await fsExist(path)) {
-			reply(501, "Internal Error");
-			return;
+			throw new Error(`Unable to find the file "${process.env.SERVER_PATH}/usernamecache.json"`);
 		}
 		const file: {
-			[uuid: string]: string,
-		} = JSON.parse((await readFile(path)).toString());
+			uuid: string,
+			name: string,
+			expiresOn: string
+		}[] = JSON.parse((await readFile(path)).toString());
 
 		const players: {
 			uuid: string,
 			username: string,
 			online: boolean
-		}[] = Object.entries(file).map(([uuid, username]) => ({ uuid: uuid, username: username, online: false }));
+		}[] = file.map((player) => ({ uuid: player.uuid, username: player.name, online: false }));
 
 		const onlines = await rcon.send("list uuids");
 		const onlinesPlayers = onlines.split(/([a-zA-Z0-9_]{4,16}) \(([0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12})\)/);
@@ -45,6 +46,7 @@ const route: Socket = async (client, args, reply) => {
 		await Logs(client.userId, "The client retrieved the list of players", client.ip);
 		reply(200, players);
 	} catch (err) {
+		reply(501, "Internal Error");
 		console.error(err);
 	}
 }

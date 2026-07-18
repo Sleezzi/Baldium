@@ -1,22 +1,22 @@
 import { appendFile, mkdir } from "fs/promises";
 import MakeNumberMoreReadable from "./makeNumberMoreReadable";
-import IndexFolder from "./indexFolder";
-import fsExist from "./fsExist";
+import fsExist from "./files/fsExist";
+import { cipher } from "./crypt";
 
 async function Logs(userId: number | null, message: string, ip: string) {
 	try {
 		if (!await fsExist(process.env.LOGS_PATH!)) {
 			throw new Error("Missing the log's folder");
 		}
-		if (!await fsExist(`${process.env.LOGS_PATH}/API`)) {
-			await mkdir(`${process.env.LOGS_PATH}/API`);
+		if (!await fsExist(`${process.env.LOGS_PATH}`)) {
+			await mkdir(`${process.env.LOGS_PATH}`);
 		}
-		if (!await fsExist(`${process.env.LOGS_PATH}/API/${userId || "Unknown"}`)) {
-			await mkdir(`${process.env.LOGS_PATH}/API/${userId || "Unknown"}`);
+		if (!await fsExist(`${process.env.LOGS_PATH}/${userId || "Unknown"}`)) {
+			await mkdir(`${process.env.LOGS_PATH}/${userId || "Unknown"}`);
 		}
 		await appendFile(
-			`${process.env.LOGS_PATH}/API/${userId || "Unknown"}/${MakeNumberMoreReadable(new Date().getDate())}-${MakeNumberMoreReadable(new Date().getMonth() + 1)}.log`,
-			`[${MakeNumberMoreReadable(new Date().getHours())}:${MakeNumberMoreReadable(new Date().getMinutes())}:${MakeNumberMoreReadable(new Date().getSeconds())}] | (${ip}) | ${message}\n`,
+			`${process.env.LOGS_PATH}/${userId || "Unknown"}/${MakeNumberMoreReadable(new Date().getDate())}-${MakeNumberMoreReadable(new Date().getMonth() + 1)}.log`,
+			`${cipher(`[${MakeNumberMoreReadable(new Date().getHours())}:${MakeNumberMoreReadable(new Date().getMinutes())}:${MakeNumberMoreReadable(new Date().getSeconds())}] | (${ip}) | ${message}`)}\n`
 		);
 	} catch (err) {
 		console.error(err);
@@ -24,7 +24,6 @@ async function Logs(userId: number | null, message: string, ip: string) {
 }
 
 export default Logs;
-
 
 export function AutocleanLogs() {
 	try {

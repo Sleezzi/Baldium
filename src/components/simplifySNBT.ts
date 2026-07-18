@@ -1,4 +1,4 @@
-// Fonction qui simplifie n'importe quel objet NBT
+// Function that simplifies any NBT object
 function simplifySNBT(obj: any): any {
 	try {
 		if (obj && typeof obj === "object" && "value" in obj && Object.keys(obj).length === 1) {

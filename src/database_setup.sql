@@ -7,9 +7,16 @@ CREATE TABLE IF NOT EXISTS accounts (
 	username VARCHAR(25),
 	email VARCHAR(40) UNIQUE NOT NULL, -- The user's email address
 	hash VARCHAR(70) NOT NULL, -- The user's password in hashed form
-	discord BIGINT, -- The user's Discord account ID
+	discord BIGINT DEFAULT NULL, -- The user's Discord account ID
 	permissions BIGINT NOT NULL DEFAULT 0, -- User permissions; See https://wiki.sleezzi.fr/en/baldium/account/permissions
-	UNIQUE KEY uniq_user (username, email, discord)
+	UNIQUE KEY uniq_user (username, email, discord),
+	UNIQUE KEY uniq_discord (discord)
+);
+CREATE TABLE IF NOT EXISTS discord (
+	id BIGINT PRIMARY KEY NOT NULL,
+	refresh_token VARCHAR(128),
+	access_token VARCHAR(128),
+	FOREIGN KEY (id) REFERENCES accounts(discord) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS recovry ( -- List of accounts that have forgotten their passwords. An email containing a code (hashed in the database) has been sent to them; they will then need to enter it to change their passwords.
@@ -28,28 +35,15 @@ CREATE TABLE IF NOT EXISTS connections ( -- This table is used when a user logs 
 	FOREIGN KEY (email) REFERENCES accounts(email) ON DELETE CASCADE -- When the user deletes their account, it is also deleted here.
 );
 
-CREATE TABLE IF NOT EXISTS user_ip ( -- This table contains all the data recorded on user connections. Users can have up to 5 saved locations; the oldest connection is deleted. When they reset their passwords, all the data linked to them is deleted.
-	id BIGINT AUTO_INCREMENT PRIMARY KEY, -- The ID is generated automatically
-	userId BIGINT NOT NULL, -- The userId linked to the account
-	ip VARCHAR(39) NOT NULL, -- The IP address the user connected to is censored and looks like "192.*.*.1" or "1:*:*:1"
-	ip_hash VARCHAR(70) NOT NULL, -- The IP address the user connected to, it hashed
-	navigators VARCHAR(70) NOT NULL,
-	model VARCHAR(40) DEFAULT "Unknown",
-	os VARCHAR(40) NOT NULL,
-	last_connection BIGINT NOT NULL, -- The timestamp of the last connection
-	longitude DECIMAL(9,6), -- The connection coordinates, found from the IP address
-	latitude DECIMAL(9,6), -- The connection coordinates, found from the IP address
-	UNIQUE KEY uniq_user_ip (userId, ip_hash), -- Indicates that there cannot be multiple connections with the same IP address and userId.
-	FOREIGN KEY (userId) REFERENCES accounts(id) ON DELETE CASCADE -- When the user deletes their account, it is also deleted here.
-);
-
 CREATE TABLE IF NOT EXISTS mods ( -- This table contains the list of mods installed on the server.
 	id VARCHAR(8) PRIMARY KEY, -- The modrinth ID of the mod
-	name VARCHAR(50), -- The mod's name is given by the user when it is added.
-	version VARCHAR(25) -- The mod version
+	version VARCHAR(32) -- The mod version
 );
 
-DROP TRIGGER IF EXISTS after_account_creation;
+CREATE TABLE IF NOT EXISTS mod_dependencies (
+	mod_id VARCHAR(8) NOT NULL REFERENCES mods(id) ON DELETE CASCADE,
+	dependency_id VARCHAR(8) NOT NULL REFERENCES mods(id) ON DELETE RESTRICT
+);
 
 DELIMITER $$
 
@@ -59,3 +53,44 @@ FOR EACH ROW
 BEGIN
 	INSERT INTO connections (email) VALUES (NEW.email);
 END$$
+
+CREATE TRIGGER after_account_discord_insert
+AFTER INSERT ON accounts
+FOR EACH ROW
+BEGIN
+	IF NEW.discord IS NOT NULL THEN
+		INSERT INTO discord (id) VALUES (NEW.discord)
+		ON DUPLICATE KEY UPDATE id = NEW.discord;
+	END IF;
+END$$
+
+CREATE TRIGGER after_account_discord_update
+AFTER UPDATE ON accounts
+FOR EACH ROW
+BEGIN
+	IF NEW.discord IS NOT NULL AND (OLD.discord IS NULL OR OLD.discord <> NEW.discord) THEN
+		INSERT INTO discord (id) VALUES (NEW.discord)
+		ON DUPLICATE KEY UPDATE id = NEW.discord;
+	END IF;
+END$$
+
+-- WITH RECURSIVE dep_tree AS (
+-- 	-- Point de départ : les dépendances directes
+-- 	SELECT dependency_id, dep_type, 1 AS depth
+-- 	FROM mod_dependencies
+-- 	WHERE mod_id = '9eGKb6K1'
+
+-- 	UNION ALL
+
+-- 	-- Récursion : les dépendances des dépendances
+-- 	SELECT d.dependency_id, d.dep_type, dt.depth + 1
+-- 	FROM mod_dependencies d
+-- 	JOIN dep_tree dt ON d.mod_id = dt.dependency_id
+-- )
+-- SELECT DISTINCT dep_tree.dependency_id, mods.version, dep_tree.dep_type, dep_tree.depth
+-- FROM dep_tree
+-- JOIN mods ON mods.id = dep_tree.dependency_id
+-- ORDER BY dep_tree.depth;
+
+
+SELECT access_token FROM discord WHERE id = 542703093981380628 LIMIT;

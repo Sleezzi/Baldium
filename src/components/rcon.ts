@@ -45,4 +45,10 @@ class Rcon {
 	})
 }
 
-export default Rcon;
+const rcon = new Rcon({
+	host: process.env.MINECRAFT_IP || "localhost",
+	password: process.env.MINECRAFT_PASSWORD || "",
+	port: process.env.MINECRAFT_PORT as any || 25565,
+});
+
+export default rcon;

@@ -1,7 +1,8 @@
-import { Socket } from "../../types/Route";
-import { Subscribe, Unsubscribe } from "../../components/subscription";
-import checkPermission from "../../components/permissions";
-import Logs from "../../components/logs";
+import { Socket } from "../../../../types/Route";
+import { Subscribe, Unsubscribe } from "../../../components/subscription";
+import { checkPermission } from "../../../components/account";
+import Logs from "../../../components/logs";
+import { logs } from "../../../components/docker";
 
 const route: Socket = async (client, subscriptionId: string, reply) => {
 	try {
@@ -20,7 +21,7 @@ const route: Socket = async (client, subscriptionId: string, reply) => {
 			client.userId,
 			"console",
 			60 * 1000 * 10,
-			(logs) => reply(103, logs),
+			(log) => reply(103, log),
 			() => reply(200, "Your subscription has expired. You will no longer receive messages from this server regarding this event unless you resubscribe."),
 		);
 		if (!id) {
@@ -30,6 +31,9 @@ const route: Socket = async (client, subscriptionId: string, reply) => {
 		}
 		await Logs(client.userId, "The client subscribed to the console channel", client.ip);
 		reply(207, id);
+		for (const log of logs) {
+			reply(103, log);
+		}
 	} catch (err) {
 		console.error(err);
 		reply(502, "Internal error");

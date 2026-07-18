@@ -1,6 +1,6 @@
 import { v4 as uuid } from "uuid";
 
-const subscriptions = new Map<string, {
+export const subscriptions = new Map<string, {
 	userId: number,
 	channel: string,
 	timeout: NodeJS.Timeout,
@@ -66,5 +66,3 @@ export function UnsubscribeClient(userId: number): void {
 		console.error(err);
 	}
 }
-
-export default subscriptions;

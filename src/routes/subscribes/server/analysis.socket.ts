@@ -1,6 +1,6 @@
-import { Socket } from "../../../types/Route";
+import { Socket } from "../../../../types/Route";
 import { Subscribe, Unsubscribe } from "../../../components/subscription";
-import checkPermission from "../../../components/permissions";
+import { checkPermission } from "../../../components/account";
 import Logs from "../../../components/logs";
 
 const route: Socket = async (client, subscriptionId: string, reply) => {

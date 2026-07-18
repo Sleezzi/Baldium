@@ -1,5 +1,5 @@
-process.env.VERSION                  = "1.12.2";
-process.env.MODLOADER                = "neoforge";
+process.env.VERSION                  = "1.21.1";
+process.env.MODLOADER                = "fabric";
 process.env.SERVER_PATH              = "/server";
 process.env.LOGS_PATH                = "/logs";
 process.env.LOGS_LIFETIME            = 30;

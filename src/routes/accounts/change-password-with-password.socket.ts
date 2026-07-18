@@ -1,4 +1,4 @@
-import { Socket } from "../../types/Route";
+import { Socket } from "../../../types/Route";
 import queryAsync from "../../components/queryAsync";
 
 import { compare, genSalt, hash } from "bcrypt";
@@ -44,8 +44,6 @@ const route: Socket = async (client, args: { current: string, new: string }, rep
 		const hashedPassword = await hash(args.new, salt);
 		
 		await queryAsync("UPDATE accounts SET hash = ?  WHERE id = ?", hashedPassword, client.userId);
-		await queryAsync("UPDATE connections SET ips = [], code = NULL, code_expire_in = NULL WHERE userId = ?", client.userId);
-		await queryAsync("DELETE FROM user_ip WHERE userId = ?", client.userId);
 		reply(200, "Password edited");
 		Trigger("client", {
 			userId: client.userId,

@@ -1,7 +1,7 @@
-import { rcon } from "../../index";
+import rcon from "../../components/rcon";
 import Logs from "../../components/logs";
-import checkPermission from "../../components/permissions";
-import { Socket } from "../../types/Route";
+import { checkPermission } from "../../components/account";
+import { Socket } from "../../../types/Route";
 
 const route: Socket = async (client, args: string, reply) => {
 	try {

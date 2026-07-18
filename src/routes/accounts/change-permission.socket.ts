@@ -1,10 +1,10 @@
 import connections from "../../components/connections";
 import Logs from "../../components/logs";
-import checkPermission, { listUserPermissions, permissions } from "../../components/permissions";
+import { checkPermission, permissions } from "../../components/account";
 import queryAsync from "../../components/queryAsync";
 import { Trigger } from "../../components/subscription";
-import Account from "../../types/Accounts";
-import { Socket } from "../../types/Route";
+import Account from "../../../types/Accounts";
+import { Socket } from "../../../types/Route";
 
 type Args = {
 	userId: number,

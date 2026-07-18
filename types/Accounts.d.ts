@@ -5,13 +5,6 @@ export type Connection = {
 	code_expire_in: number
 }
 
-export type Ips = {
-	hash: string,
-	id: string,
-	"last-connection": number,
-	ip: string
-}
-
 type Account = {
 	id: string,
 	username: string,

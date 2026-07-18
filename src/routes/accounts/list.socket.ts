@@ -1,7 +1,7 @@
-import { Socket } from "../../types/Route";
+import { Socket } from "../../../types/Route";
 import queryAsync from "../../components/queryAsync";
 import Logs from "../../components/logs";
-import checkPermission from "../../components/permissions";
+import { checkPermission } from "../../components/account";
 
 const route: Socket = async (client, args, reply) => {
 	try {
@@ -11,7 +11,7 @@ const route: Socket = async (client, args, reply) => {
 			return;
 		}
 		await Logs(client.userId, "The client accessed the list of accounts", client.ip);
-		const accounts = await queryAsync("SELECT id, username, permissions FROM accounts");
+		const accounts = await queryAsync("SELECT id, username FROM accounts");
 		
 		reply(200, accounts);
 	} catch (err) {

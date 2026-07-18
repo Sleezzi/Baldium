@@ -1,4 +1,4 @@
-import { HTTP } from "../../types/Route";
+import { HTTP } from "../../../types/Route";
 import queryAsync from "../../components/queryAsync";
 
 import Logs from "../../components/logs";
@@ -43,30 +43,28 @@ const createContent = (username: string, code: string): HTMLElement => {
 	return content;
 }
 
-const route: HTTP = {
+const route: HTTP<{
+	Body: string
+}> = {
 	method: "POST",
-	execute: async (request, response) => {
+	schema: {
+		body: {
+			type: "string",
+		}
+	},
+	prehandler: async (request, response, done) => {
+		const body = request.body;
+		if (!body.toLowerCase().match(/[a-z0-9\.-]{1,}@[a-z0-9\.-]{1,}\.[a-z]{2,5}/)) {
+			await Logs(null, "The client attempted to reset their password, but the email address they provided is invalid.", request.ip);
+			return response.status(400).send({
+				status: 400,
+				response: "Invalid email"
+			});
+		}
+	},
+	handler: async (request, response) => {
 		try {
-			const body: string = request.body;
-			if (!body || typeof body !== "string") {
-				await Logs(null, "The client attempted to reset their password but did not provide an email address.", request.ip);
-				response.status(400).json({
-					status: 400,
-					response: "Invalid request"
-				});
-				return;
-			}
-			if (!body.toLowerCase().match(/[a-z0-9\.-]{1,}@[a-z0-9\.-]{1,}\.[a-z]{2,5}/)) {
-				await Logs(null, "The client attempted to reset their password, but the email address they provided is invalid.", request.ip);
-				response.status(400).json({
-					status: 400,
-					response: "Invalid email"
-				});
-				return;
-			}
-			if (!process.env.SECRET_KEY) {
-				throw new Error("The secret key used for encryption is missing. Add \"SECRET_KEY\" to the environment variables to define the secret key.");
-			}
+			const body = request.body;
 			const accounts: { username: string, id: number }[] = await queryAsync("SELECT username, id FROM accounts WHERE email = ?", body.toLowerCase());
 			if (accounts.length > 0) {
 				const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
@@ -77,19 +75,19 @@ const route: HTTP = {
 			} else {
 				await Logs(null, "The client tried to reset their password, but their account does not exist.", request.ip);
 			}
-			
-			response.json({
-				status: 200,
-				response: "E-mail sended"
-			});
 			setTimeout(async () => {
 				try {
 					await queryAsync("DELETE FROM recovry WHERE email = ?", body.toLowerCase());
 				} catch (error) {}
 			}, 1000 * 60 * 15);
+			
+			return response.send({
+				status: 200,
+				response: "E-mail sended"
+			});
 		} catch (err) {
 			console.error(err);
-			response.status(500).json({
+			return response.status(500).send({
 				status: 500,
 				response: "Internal error"
 			});

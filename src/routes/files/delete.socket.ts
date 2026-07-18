@@ -1,8 +1,8 @@
 import { rm } from "fs/promises";
-import { Socket } from "../../types/Route";
+import { Socket } from "../../../types/Route";
 import Logs from "../../components/logs";
-import checkPermission from "../../components/permissions";
-import fsExist from "../../components/fsExist";
+import { checkPermission } from "../../components/account";
+import fsExist from "../../components/files/fsExist";
 
 const hiddens = [
 	// "*.env", // Already filtred

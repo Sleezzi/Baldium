@@ -1,7 +1,7 @@
 import domino from "domino";
 import Logs from "../../components/logs";
 import queryAsync from "../../components/queryAsync";
-import { Socket } from "../../types/Route";
+import { Socket } from "../../../types/Route";
 import sendMail from "../../components/sendMail";
 import connections from "../../components/connections";
 
