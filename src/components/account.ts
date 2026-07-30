@@ -5,12 +5,24 @@ type AuthenticationResult = {
 	message: string
 } | {
 	success: true,
-	message: number
+	message: {
+		userId: number,
+		version: string
+	}
+}
+
+function checkToken(token: string) {
+	try {
+		verify(token, process.env.SECRET_KEY!);
+		return true;
+	} catch (error) {
+		return false;
+	}
 }
 
 export async function authenticate(token: string): Promise<AuthenticationResult> {
 	try {
-		if (!verify(token, process.env.SECRET_KEY!)) {
+		if (!checkToken(token)) {
 			return {
 				success: false,
 				message: "INVALID_TOKEN"
@@ -24,7 +36,7 @@ export async function authenticate(token: string): Promise<AuthenticationResult>
 				message: "MISSING_PAYLOAD"
 			};
 		}
-		const payload: { userId: number } = typeof data === "string" ? JSON.parse(data) : data;
+		const payload: { userId: number, version: string } = typeof data === "string" ? JSON.parse(data) : data;
 		if (!payload) {
 			return {
 				success: false,
@@ -39,7 +51,10 @@ export async function authenticate(token: string): Promise<AuthenticationResult>
 		}
 		return {
 			success: true,
-			message: payload.userId
+			message: {
+				userId: payload.userId,
+				version: payload.version
+			}
 		}
 	} catch (err) {
 		console.error(err);
@@ -50,11 +65,11 @@ export async function authenticate(token: string): Promise<AuthenticationResult>
 	}
 }
 
-export function generateToken(userId: number) {
+export function generateToken(userId: number, version: string) {
 	if (!process.env.SECRET_KEY) {
 		throw new Error("The secret key used for encryption is missing. Add \"SECRET_KEY\" to the environment variables to define the secret key.");
 	}
-	return sign({ userId: userId }, process.env.SECRET_KEY, { expiresIn: 2629743 });
+	return sign({ userId: userId, version: version }, process.env.SECRET_KEY, { expiresIn: 2629743 });
 }
 
 export function checkPermission(min_permission: keyof typeof permissions, current_permission: number): boolean {

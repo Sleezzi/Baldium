@@ -54,7 +54,7 @@
 // 			// });
 
 // 			// if (!tokenResponse.ok) {
-// 			// 	await Logs(userId, "The client attempted to link their Discord account but did not provide a valid code", request.ip);
+// 			// 	await Logs(userId, "The client attempted to link their Discord account but did not provide a valid code", request.clientIP);
 // 			// 	console.log(await tokenResponse.json(), `${request.protocol}://${request.get("host")}${request.path.split("?")[0]}`);
 // 			// 	
 // 			// 	return response
@@ -73,7 +73,7 @@
 // 			// .then((_response) => _response.json());
 			
 // 			// if (!("id" in discord)) {
-// 			// 	await Logs(userId, "The client attempted to link their Discord account but did not provide a valid code", request.ip);
+// 			// 	await Logs(userId, "The client attempted to link their Discord account but did not provide a valid code", request.clientIP);
 // 			// 	
 // 			// 	return response
 // 				// 	.status(404)
@@ -83,7 +83,7 @@
 // 			// const accounts: { id: number }[] = await queryAsync("SELECT id FROM accounts WHERE discord = ? AND id != ?", discord.id, userId);
 
 // 			// if (accounts.length > 0) {
-// 			// 	await Logs(userId, "The client attempted to link their Discord account but provided a token linked to a Discord account already linked to another account", request.ip);
+// 			// 	await Logs(userId, "The client attempted to link their Discord account but provided a token linked to a Discord account already linked to another account", request.clientIP);
 // 			// 	
 // 			// 	return response
 // 				// 	.status(403)
@@ -91,7 +91,7 @@
 // 				// 	.send("This Discord account is already linked to another account.");
 // 			// }
 			
-// 			// await Logs(userId, "The client links their account to a Discord account", request.ip);
+// 			// await Logs(userId, "The client links their account to a Discord account", request.clientIP);
 			
 // 			// await queryAsync("UPDATE accounts SET discord = ? WHERE id = ?", discord.id, userId);
 // 			// await queryAsync("UPDATE discord SET access_token = ?, refresh_token = ? WHERE id = ?", cipher(tokens.access_token), cipher(tokens.refresh_token), discord.id);

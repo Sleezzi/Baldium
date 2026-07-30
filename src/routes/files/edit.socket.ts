@@ -4,15 +4,8 @@ import { Socket } from "../../../types/Route";
 import Logs from "../../components/logs";
 import { checkPermission } from "../../components/account";
 import fsExist from "../../components/files/fsExist";
-
-const hiddens = [
-	// "*.env", // Already filtred
-	".rcon-cli.yaml",
-	"run.bat",
-	"run.sh",
-	"eula.txt",
-	// "mods/*", // Already filtred
-];
+import unauthorizeds from "../../components/files/Unauthorized";
+import { join } from "path";
 
 const route: Socket = async (client, args: { path: string, value: string }, reply) => {
 	try {
@@ -36,28 +29,22 @@ const route: Socket = async (client, args: { path: string, value: string }, repl
 			reply(400, "Invalid path");
 			return;
 		}
-		if (args.path.includes("./")) {
-			await Logs(client.userId, `The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path "${args}" contained ./ which likely means the user attempted to edit files outside the server folder`, client.ip);
-			reply(404, "File not found");
-			return;
-		}
-		if (args.path.endsWith(".env")) {
-			await Logs(client.userId, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path contained .env, which likely means the user attempted to modify files containing sensitive information", client.ip);
-			reply(403, "For the security of the server, the .env's file can't be read from the api");
-			return;
-		}
-		if (args.path.startsWith("mods/") || args.path.startsWith("/mods/")) {
-			await Logs(client.userId, "The client attempted to edit a file but the file is in the mods's folder", client.ip);
-			reply(403, "You can't edit the mods");
-			return;
-		}
-		if (hiddens.find((hidden) => `${!hidden.startsWith("/") && "/"}${hidden}` === `${!args.path.startsWith("/") && "/"}${args.path}`)) {
-			await Logs(client.userId, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
-			reply(404, "File not found");
-			return;
+		for (const unauthorized of unauthorizeds) {
+			if (typeof unauthorized === "string") {
+				if (unauthorized === args.path) {
+					await Logs(client.userId, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
+					reply(404, "File not found");
+					return;
+				}
+			}
+			if (args.path.match(unauthorized)) {
+				await Logs(client.userId, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
+				reply(404, "File not found");
+				return ;
+			}
 		}
 
-		const path = `${process.env.SERVER_PATH}${!args.path.startsWith("/") && "/"}${args.path}`;
+		const path = join(process.env.SERVER_PATH!, args.path);
 
 		if (!await fsExist(path) || !(await stat(path)).isFile()) {
 			await Logs(client.userId, `The target that the client tried to edit is not a file`, client.ip);

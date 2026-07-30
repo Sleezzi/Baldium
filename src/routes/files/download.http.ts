@@ -1,13 +1,13 @@
 import { HTTP } from "../../../types/Route";
 import queryAsync from "../../components/queryAsync";
 
-import { pipeline } from "stream/promises";
-import { createWriteStream } from "fs";
+import send from "send";
 import Logs from "../../components/logs";
 import { checkPermission } from "../../components/account";
 import { authenticate } from "../../components/account";
 import unauthorizeds from "../../components/files/Unauthorized";
-import { join } from "path";
+import { join, basename } from "path";
+import { v4 as uuid } from "uuid";
 
 const route: HTTP<{
 	Headers: {
@@ -20,7 +20,7 @@ const route: HTTP<{
 	userId: number,
 	path: string
 }> = {
-	method: "POST",
+	method: "GET",
 	schema: {
 		headers: {
 			type: "object",
@@ -56,7 +56,7 @@ const route: HTTP<{
 			switch (connection.message) {
 				case "INVALID_TOKEN":
 					await Logs(null, "The client attempted to download the world file but did not provide a valid token", request.clientIP);
-					return response.status(401).send({
+					response.status(401).send({
 						status: 401,
 						response: "Invalid request"
 					});
@@ -111,7 +111,7 @@ const route: HTTP<{
 				status: 403
 			});
 		}
-		if (!checkPermission("manage_files", accounts[0].permissions)) {
+		if (!checkPermission("read_files", accounts[0].permissions)) {
 			await Logs(user.userId, "The client attempted to upload a file, but their account does not have the necessary permissions", request.clientIP);
 			return response.status(403).send({
 				response: "You can't access to this ressource",
@@ -146,23 +146,33 @@ const route: HTTP<{
 	},
 	handler: async (request, response) => {
 		try {
-			const data = await request.file();
-			if (!data) {
-				response.status(400).send({ status: 400, response: "No file provided" });
-				return;
-			}
+			const filename = basename(request.query.path);
+			console.log(filename);
+			
+			response.header(
+				'Content-Disposition',
+				`attachment; filename="${filename}"; filename*=UTF-8'${encodeURIComponent(filename)}'`
+			);
+			const stream = send(
+				request.raw,
+				request.query.path,
+				{
+					root: process.env.SERVER_PATH!,
+					index: false
+				}
+			);
 
-			const writeStream = createWriteStream(request.path, {
-				mode: 0o644 // rw-r--r-- | It's writable only to 1000:1000, for others it in read-only
+			stream.on("error", (err) => {
+				console.error(err);
+				response.code(err.status || 500).send({ status: 500, response: "Internal error" });
 			});
-			await pipeline(data.file, writeStream);
 
-			response
-			.status(200)
-			.send({
-				status: 200,
-				response: "Success"
+			stream.on("directory", () => {
+				response.code(404).send({ status: 404, response: "File not found" });
 			});
+
+			stream.pipe(response.raw);
+			response.hijack();
 		} catch (err) {
 			console.error(err);
 			return response.status(500).send({

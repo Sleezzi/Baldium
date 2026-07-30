@@ -2,6 +2,7 @@ import { HTTP } from "../../../types/Route";
 import queryAsync from "../../components/queryAsync";
 
 import { genSalt, hash } from "bcrypt";
+import { v4 as uuid } from "uuid";
 import Logs from "../../components/logs";
 import { generateToken } from "../../components/account";
 
@@ -49,7 +50,7 @@ const route: HTTP<{
 			throw new Error("The secret key used for encryption is missing. Add \"SECRET_KEY\" to the environment variables to define the secret key.");
 		}
 		if (!body.username.match(/[a-zA-Z0-9\-_]{5,25}/)) {
-			await Logs(null, "The client attempted to register but provided an invalid username in the body of their request", request.ip || "Unknow");
+			await Logs(null, "The client attempted to register but provided an invalid username in the body of their request", request.clientIP);
 			
 			return response.status(400).send({
 				status: 400,
@@ -57,7 +58,7 @@ const route: HTTP<{
 			});
 		}
 		if (!body.email.match(/[a-z0-9\.-]{1,}@[a-z0-9\.-]{1,}\.[a-z]{2,5}/)) {
-			await Logs(null, "The client attempted to register but provided an invalid email in the body of their request", request.ip);
+			await Logs(null, "The client attempted to register but provided an invalid email in the body of their request", request.clientIP);
 			
 			return response.status(400).send({
 				status: 400,
@@ -65,7 +66,7 @@ const route: HTTP<{
 			});
 		}
 		if (body.password.length > 25 || body.password.length < 10) {
-			await Logs(null, "The client attempted to register but provided an invalid password in the body of their request", request.ip || "Unknow");
+			await Logs(null, "The client attempted to register but provided an invalid password in the body of their request", request.clientIP);
 			
 			return response.status(400).send({
 				status: 400,
@@ -73,7 +74,7 @@ const route: HTTP<{
 			});
 		}
 		if ((await queryAsync("SELECT username FROM accounts WHERE username = ? OR email = ?", body.username.toLowerCase(), body.email.toLowerCase())).length > 0) {
-			await Logs(null, "The client attempted to register, but the username or the email they provided is already taken", request.ip || "Unknow");
+			await Logs(null, "The client attempted to register, but the username or the email they provided is already taken", request.clientIP);
 			
 			return response.status(401).send({
 				status: 401,
@@ -88,23 +89,26 @@ const route: HTTP<{
 			const salt = await genSalt();
 			
 			const hashedPassword = await hash(body.password, salt);
+			const version = uuid();
 			
-			await queryAsync("INSERT INTO accounts (username, email, hash) VALUES (?, ?, ?)", body.username.toLowerCase(), body.email.toLowerCase(), hashedPassword);
+			await queryAsync("INSERT INTO accounts (username, email, hash, version) VALUES (?, ?, ?, ?)", body.username.toLowerCase(), body.email.toLowerCase(), hashedPassword, version);
 			const [account]: [{ id: number }] = await queryAsync("SELECT id FROM accounts WHERE username = ? AND email = ?", body.username.toLowerCase(), body.email.toLowerCase());
 			
-			await Logs(account.id, "The client created an account", request.ip);
+			await Logs(account.id, "The client created an account", request.clientIP);
+
 			
-			const token = generateToken(account.id);
+			const token = generateToken(account.id, version);
 
 			return response
 			.setCookie(
 				"token",
 				token,
 				{
-					maxAge: Date.now() + 2629743,
-					secure: true,
-					domain: ".sleezzi.fr",
-					sameSite: "none"
+					path: "/",
+					maxAge: 2629743,
+					secure: process.env.DEBUG === "FALSE",
+					httpOnly: true,
+					sameSite: process.env.DEBUG === "FALSE" ? "none" : "lax"
 				}
 			)
 			.status(200)

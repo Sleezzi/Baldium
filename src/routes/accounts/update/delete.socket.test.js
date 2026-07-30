@@ -12,10 +12,10 @@ jest.mock("../../components/sendMail", () => ({
 }));
 
 const route = require("./delete.socket");
-const Logs = require("../../components/logs");
-const queryAsync = require("../../components/queryAsync");
-const sendMail = require("../../components/sendMail");
-const connections = require("../../components/connections");
+const Logs = require("../../../components/logs");
+const queryAsync = require("../../../components/queryAsync");
+const sendMail = require("../../../components/sendMail");
+const connections = require("../../../components/connections");
 
 
 test("Delete a user account", async () => {

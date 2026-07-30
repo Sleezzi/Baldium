@@ -19,19 +19,20 @@ import type Message from "../types/Message";
 import "./components/docker";
 import Logs from "./components/logs";
 import { Trigger, UnsubscribeClient } from "./components/subscription";
-import Fastify, { FastifyPluginAsync } from "fastify";
+import Fastify, { fastify, FastifyPluginAsync } from "fastify";
+import fastifyPlugin from "fastify-plugin";
 import type { HTTP, Socket } from "../types/Route";
 import connections from "./components/connections";
 import { authenticate } from "./components/account";
 import { decipher } from "./components/crypt";
-import type Client from "../types/Client";
 
 // Stores socket routes indexed by their URI-like key (e.g. "accounts/about").
 const routes = new Map<string, Socket>();
 const wss = new WebSocketServer({ port: process.env.WEBSOCKET_PORT as any || 81 });
 
 const http = Fastify({
-	trustProxy: !!process.env.TRUSTED_PROXY,
+	// logger: process.env.DEBUG === "TRUE",
+	trustProxy: process.env.TRUSTED_PROXY,
 });
 
 /**
@@ -49,7 +50,7 @@ const http = Fastify({
 			console.warn(`Missing export.defaults in ${path}`);
 			continue;
 		}
-		await http.register(middleware);
+		await http.register(fastifyPlugin(middleware));
 
 		console.log(`Middleware "${path}" instancied`);
 	}
@@ -87,7 +88,7 @@ const http = Fastify({
 			preHandler: route.prehandler,
 			handler: route.handler
 		});
-		console.log(`Route "${uri}" instancied in http`);
+		console.log(`Route ${route.method.toUpperCase()} "${uri}" instancied in http`);
 	}
 
 	const port = Number(process.env.HTTP_PORT) || 80;
@@ -125,123 +126,111 @@ wss.on("connection", async (ws, req) => {
 			if (req.socket.remoteAddress) return req.socket.remoteAddress;
 			return null;
 		})();
+
 		if (!ip) {
 			Logs(null, "A WebSocket connection was blocked because the server failed to retrieve the connection's IP address.", "0");
 			ws.close();
 			return;
 		}
+
 		
-		// First websocket frame must be an "auth" message. This promise gates route handling.
-		const client = await new Promise<Client>((resolve, error) => {
-			const timeout = setTimeout(() => {
-				ws.close();
-				error();
-			}, 500);
-			ws.once("message", async (raw) => { // Connection
-				try {
-					timeout.close();
-					const message: Message = JSON.parse(raw.toString());
-					if (message.request !== "auth") {
-						reply(401, "The server expects the first message you send to it to be a connection message containing your token.", message.request, message.id);
-						ws.close();
-						error();
-						return;
-					}
-					if (!message.args || typeof message.args !== "string") { // Checks if the client has correctly provided a token in their request
-						reply(401, "Invalid token", message.request, message.id);
-						ws.close();
-						error();
-						return;
-					}
-					const isValid = await authenticate(message.args);
-					if (!isValid.success) {
-						switch (isValid.message) {
-							case "INVALID_TOKEN":
-								await Logs(null, "The handcheck with this client and server failed because the client provided an invalid token.", ip!);
-								reply(401, "Invalid token", message.request, message.id);
-								break;
-							case "MISSING_PAYLOAD":
-								await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
-								reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", message.request, message.id);
-								break;
-							case "INVALID_PAYLOAD":
-								await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
-								reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", message.request, message.id);
-								break;
-							case "MISSING_USERID":
-								await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
-								reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", message.request, message.id);
-								break;
-							default:
-								reply(500, "Internal error", message.request, message.id);
-								break;
-						}
-						ws.close();
-						error();
-						return;
-					}
-					const _userId = isValid.message;
-					
-					const accounts: { id: number, username: string, permissions: number, discord: number }[] = await queryAsync("SELECT username, permissions, discord FROM accounts WHERE id = ? LIMIT 1", _userId);
-					if (accounts.length === 0) {
-						await Logs(_userId, "The handcheck with this client and server failed because the client connected from a new IP address.", ip!);
-						reply(403, "It appears that your account has been deleted.", message.request, message.id);
-						ws.close();
-						error();
-						return;
-					}
-					const account = accounts[0];
+		if (!req.headers.cookie || !req.headers.cookie.startsWith("token=")) { // Checks if the client has correctly provided a token in their request
+			reply(401, "Invalid token", "auth", null);
+			ws.close();
+			return;
+		}
+		const token = req.headers.cookie.split("token=")[1];
+		
+		const isValid = await authenticate(token);
+		if (!isValid.success) {
+			switch (isValid.message) {
+				case "INVALID_TOKEN":
+					await Logs(null, "The handcheck with this client and server failed because the client provided an invalid token.", ip!);
+					reply(401, "Invalid token", "auth", null);
+					break;
+				case "MISSING_PAYLOAD":
+					await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
+					reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
+					break;
+				case "INVALID_PAYLOAD":
+					await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
+					reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
+					break;
+				case "MISSING_USERID":
+					await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
+					reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
+					break;
+				default:
+					reply(500, "Internal error", "auth", null);
+					break;
+			}
+			ws.close();
+			return;
+		}
+		const user = isValid.message;
+		
+		const accounts: { id: number, username: string, permissions: number, discord: number | null, version: string }[] = await queryAsync("SELECT username, permissions, discord, version FROM accounts WHERE id = ? LIMIT 1", user.userId);
+		if (accounts.length === 0) {
+			await Logs(user.userId, "The handcheck with this client and server failed because the client tried to login as a deleted account.", ip!);
+			reply(403, "It appears that your account has been deleted.", "auth", null);
+			ws.close();
+			return;
+		}
+		const account = accounts[0];
 
-					let discord: string | null = null;
-					if (account.discord !== null) {
-						const tokens: { id: number, access_token: string }[] = await queryAsync("SELECT access_token FROM discord WHERE id = ?", account.discord);
-						
-						if (tokens.length > 0) {
-							discord = decipher(tokens[0].access_token);
-						}
-					}
+		if (user.version !== account.version) {
+			await Logs(user.userId, "The handcheck with this client and server failed because the client tried to login using an old token.", ip!);
+			reply(403, "This token is no longer valid. Please log in again.", "auth", null);
+			ws.close();
+			return;
+		}
 
-					if (connections.has(_userId)) { // Checks if the user has already connected to the server
-						connections.get(_userId)!.close("You logged in from another location"); // Disconnect the user's old connection
-					}
-					connections.set(_userId, {
-						close: (reason) => {
-							if (reason) {
-								Trigger("client", {
-									userId: _userId,
-									reason: "disconnection",
-									args: reason
-								});
-							}
-							ws.close();
-						},
-						send: (message, service, object) => {
-							ws.send(JSON.stringify({
-								request: "unsolicited-message",
-								message: message,
-								service: service,
-								object: object,
-							}));
-						},
-						permissions: account.permissions
+		let discord: string | null = null;
+		if (account.discord !== null) {
+			const tokens: { id: number, access_token: string }[] = await queryAsync("SELECT access_token FROM discord WHERE id = ?", account.discord);
+			
+			if (tokens.length > 0) {
+				discord = decipher(tokens[0].access_token);
+			}
+		}
+		if (connections.has(user.userId)) { // Checks if the user has already connected to the server
+			connections.get(user.userId)!.close("You logged in from an other device"); // Disconnect the user's old connection
+		}
+		connections.set(user.userId, {
+			close: (reason) => {
+				if (reason) {
+					Trigger("client", {
+						userId: user.userId,
+						reason: "disconnection",
+						args: reason
 					});
-					reply(200, {
-						userId: _userId,
-						username: account.username,
-						permissions: account.permissions,
-						discord: discord
-					}, message.request, message.id);
-					resolve({
-						userId: _userId,
-						permissions: account.permissions,
-						discord: account.discord
-					});
-				} catch (err) {
-					console.error(err);
-					error();
 				}
-			});
+				ws.close();
+			},
+			send: (message, service, object) => {
+				ws.send(JSON.stringify({
+					request: "unsolicited-message",
+					message: message,
+					service: service,
+					object: object,
+				}));
+			},
+			permissions: account.permissions
 		});
+		
+		reply(200, {
+			userId: user.userId,
+			username: account.username,
+			permissions: account.permissions,
+			discord: discord
+		}, "auth", null);
+
+		const client = {
+			userId: user.userId,
+			permissions: account.permissions,
+			discord: account.discord
+		};
+
 		ws.on("message", async (raw) => {
 			try {
 				const message: Message = JSON.parse(raw.toString());
@@ -250,12 +239,7 @@ wss.on("connection", async (ws, req) => {
 					reply(401, "Invalid request", message.request, message.id);
 					return;
 				}
-				if (message.request === "auth") return;
-				if (!client.userId || !connections.has(client.userId)) {
-					await Logs(null, "The client sent a message to the server when the server wasn't ready.", ip);
-					reply(501, "The server is not ready", message.request, message.id);
-					return;
-				}
+				
 				if (!routes.has(message.request)) {
 					await Logs(client.userId, "The client sent a message to the server requesting a route that does not exist.", ip);
 					reply(404, "Invalid route", message.request, message.id);

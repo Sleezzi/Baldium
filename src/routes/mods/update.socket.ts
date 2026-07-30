@@ -4,7 +4,7 @@ import Logs from "../../components/logs";
 import { checkPermission } from "../../components/account";
 import getMod from "../../components/mods/downloadMod";
 import { rm } from "fs/promises";
-import Mod from "../../components/mods";
+import Mod from "../../components/mods/mods";
 
 const route: Socket = async (client, args: string, reply) => {
 	try {

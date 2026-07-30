@@ -1,10 +1,11 @@
-import { Socket } from "../../../types/Route";
-import queryAsync from "../../components/queryAsync";
+import { Socket } from "../../../../types/Route";
+import queryAsync from "../../../components/queryAsync";
 
 import { compare, genSalt, hash } from "bcrypt";
-import Logs from "../../components/logs";
-import connections from "../../components/connections";
-import { Trigger } from "../../components/subscription";
+import { v4 as uuid } from "uuid";
+import Logs from "../../../components/logs";
+import connections from "../../../components/connections";
+import { Trigger } from "../../../components/subscription";
 
 const route: Socket = async (client, args: { current: string, new: string }, reply) => {
 	try {
@@ -42,8 +43,10 @@ const route: Socket = async (client, args: { current: string, new: string }, rep
 		
 		await Logs(client.userId, "The client changed their password", client.ip);
 		const hashedPassword = await hash(args.new, salt);
+
+		const version = uuid();
 		
-		await queryAsync("UPDATE accounts SET hash = ?  WHERE id = ?", hashedPassword, client.userId);
+		await queryAsync("UPDATE accounts SET hash = ?, version = ? WHERE id = ?", hashedPassword, version, client.userId);
 		reply(200, "Password edited");
 		Trigger("client", {
 			userId: client.userId,

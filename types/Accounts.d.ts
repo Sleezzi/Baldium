@@ -11,6 +11,7 @@ type Account = {
 	email: string,
 	hash: string,
 	discord: number,
-	permissions: number
+	permissions: number,
+	version: string
 }
 export default Account;

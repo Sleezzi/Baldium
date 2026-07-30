@@ -1,11 +1,12 @@
-import { HTTP } from "../../../types/Route";
-import queryAsync from "../../components/queryAsync";
+import { HTTP } from "../../../../types/Route";
+import queryAsync from "../../../components/queryAsync";
 
 import bcrypt from "bcrypt";
-import Logs from "../../components/logs";
-import connections from "../../components/connections";
+import { v4 as uuid } from "uuid";
+import Logs from "../../../components/logs";
+import connections from "../../../components/connections";
 import { createHash, timingSafeEqual } from "crypto";
-import { Trigger } from "../../components/subscription";
+import { Trigger } from "../../../components/subscription";
 
 const route: HTTP<{
 	Body: {
@@ -34,7 +35,7 @@ const route: HTTP<{
 	},
 	prehandler: async (request, response) => {
 		if (request.body.password.length < 10 || request.body.password.length > 25) {
-			await Logs(null, "The client attempted to reset their password, but the new password did not meet the server's expectations.", request.ip);
+			await Logs(null, "The client attempted to reset their password, but the new password did not meet the server's expectations.", request.clientIP);
 			return response.status(400).send({
 				status: 400,
 				response: "Invalid password"
@@ -45,7 +46,7 @@ const route: HTTP<{
 		try {
 			const hashs: { code: string, attempts: number, expireAt: number }[] = await queryAsync("SELECT code, attempts, expireAt FROM recovry WHERE email = ?", request.body.email);
 			if (hashs.length === 0) {
-				await Logs(null, "The client attempted to reset their password but did not request a reset beforehand.", request.ip);
+				await Logs(null, "The client attempted to reset their password but did not request a reset beforehand.", request.clientIP);
 				return response.status(403).send({
 					status: 403,
 					response: "Invalid code"
@@ -53,7 +54,7 @@ const route: HTTP<{
 			}
 			const accounts: { id: number }[] = await queryAsync("SELECT id FROM accounts WHERE email = ?", request.body.email.toLowerCase());
 			if (accounts.length === 0) {
-				await Logs(null, "The client is in the \"recovery\" table but not in the \"accounts\" table.", request.ip);
+				await Logs(null, "The client is in the \"recovery\" table but not in the \"accounts\" table.", request.clientIP);
 				await queryAsync("DELETE FROM recovry WHERE email = ?", request.body.email.toLowerCase());
 				return response.status(403).send({
 					status: 403,
@@ -62,7 +63,7 @@ const route: HTTP<{
 			}
 			const hash = hashs[0];
 			if (hash.attempts > 5) {
-				await Logs(accounts[0].id, "The client attempted to reset their password but exceeded the maximum number of attempts.", request.ip);
+				await Logs(accounts[0].id, "The client attempted to reset their password but exceeded the maximum number of attempts.", request.clientIP);
 				await queryAsync("DELETE FROM recovry WHERE email = ?", request.body.email.toLowerCase());
 				return response.status(403).send({
 					status: 403,
@@ -70,7 +71,7 @@ const route: HTTP<{
 				});
 			}
 			if (hash.expireAt < Date.now() / 1000) {
-				await Logs(accounts[0].id, "The client attempted to reset their password but their request expired.", request.ip);
+				await Logs(accounts[0].id, "The client attempted to reset their password but their request expired.", request.clientIP);
 				await queryAsync("DELETE FROM recovry WHERE email = ?", request.body.email.toLowerCase());
 				return response.status(403).send({
 					status: 403,
@@ -81,7 +82,7 @@ const route: HTTP<{
 			const savedCodeInBuffer = Buffer.from(hash.code);
 			
 			if (codeFromClientInBuffer.length !== savedCodeInBuffer.length) {
-				await Logs(accounts[0].id, "The client attempted to reset their password, but the code they provided is not the same as the one the server has on file.", request.ip);
+				await Logs(accounts[0].id, "The client attempted to reset their password, but the code they provided is not the same as the one the server has on file.", request.clientIP);
 				await queryAsync("UPDATE recovry SET attempts = ? WHERE email = ?", hash.attempts + 1, request.body.email.toLowerCase());
 				return response.status(403).send({
 					status: 403,
@@ -93,7 +94,7 @@ const route: HTTP<{
 				codeFromClientInBuffer,
 				savedCodeInBuffer
 			)) {
-				await Logs(accounts[0].id, "The client attempted to reset their password, but the code they provided is not the same as the one the server has on file.", request.ip);
+				await Logs(accounts[0].id, "The client attempted to reset their password, but the code they provided is not the same as the one the server has on file.", request.clientIP);
 				await queryAsync("UPDATE recovry SET attempts = ? WHERE email = ?", hash.attempts + 1, request.body.email.toLowerCase());
 				return response.status(403).send({
 					status: 403,
@@ -103,9 +104,12 @@ const route: HTTP<{
 
 			const salt = await bcrypt.genSalt();
 			
-			await Logs(accounts[0].id, "The client has reset their password.", request.ip);
+			const version = uuid();
+			
+			await Logs(accounts[0].id, "The client has reset their password.", request.clientIP);
 			const hashedPassword = await bcrypt.hash(request.body.password, salt);
-			await queryAsync("UPDATE accounts SET hash = ? WHERE id = ?", hashedPassword, accounts[0].id);
+			
+			await queryAsync("UPDATE accounts SET hash = ?, version = ? WHERE id = ?", hashedPassword, version, accounts[0].id);
 			await queryAsync("DELETE FROM recovry WHERE email = ?", request.body.email.toLowerCase());
 			
 			Trigger("client", {
@@ -114,7 +118,9 @@ const route: HTTP<{
 			});
 			connections.get(accounts[0].id)!.close();
 			
-			return response.status(200).send({
+			return response
+			.status(200)
+			.send({
 				status: 200,
 				response: "Password changed"
 			});

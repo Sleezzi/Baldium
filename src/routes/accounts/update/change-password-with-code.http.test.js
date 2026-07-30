@@ -10,8 +10,8 @@ jest.mock("../../components/logs", () => ({
 }));
 
 const route = require("./change-password-with-code.http");
-const Logs = require("../../components/logs");
-const queryAsync = require("../../components/queryAsync");
+const Logs = require("../../../components/logs");
+const queryAsync = require("../../../components/queryAsync");
 
 test("Changes the user's password when they receive a code by email after clicking \"Forgot my password\"", async () => {
 	const body = { email: process.env.ACCOUNT_EMAIL, code: "123456", password: "password1234" };

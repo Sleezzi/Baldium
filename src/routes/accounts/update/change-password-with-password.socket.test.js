@@ -10,9 +10,9 @@ jest.mock("../../components/logs", () => ({
 }));
 
 const route = require("./change-password-with-password.socket");
-const Logs = require("../../components/logs");
-const queryAsync = require("../../components/queryAsync");
-const { default: connections } = require("../../components/connections");
+const Logs = require("../../../components/logs");
+const queryAsync = require("../../../components/queryAsync");
+const { default: connections } = require("../../../components/connections");
 
 test("Changes the user's password when they receive a code by email after clicking \"Forgot my password\"", async () => {
 	const account = { userId: process.env.ACCOUNT_ID, username: process.env.ACCOUNT_USERNAME, email: process.env.ACCOUNT_EMAIL };

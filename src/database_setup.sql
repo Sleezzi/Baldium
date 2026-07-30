@@ -5,17 +5,18 @@ USE Baldium; -- Use the database created earlier
 CREATE TABLE IF NOT EXISTS accounts (
 	id BIGINT PRIMARY KEY AUTO_INCREMENT,
 	username VARCHAR(25),
-	email VARCHAR(40) UNIQUE NOT NULL, -- The user's email address
-	hash VARCHAR(70) NOT NULL, -- The user's password in hashed form
-	discord BIGINT DEFAULT NULL, -- The user's Discord account ID
-	permissions BIGINT NOT NULL DEFAULT 0, -- User permissions; See https://wiki.sleezzi.fr/en/baldium/account/permissions
+	email VARCHAR(40) UNIQUE NOT NULL,			-- The user's email address
+	hash VARCHAR(70) NOT NULL,					-- The user's password in hashed form
+	discord BIGINT DEFAULT NULL,				-- The user's Discord account ID
+	permissions BIGINT NOT NULL DEFAULT 0,		-- User permissions; See https://wiki.sleezzi.fr/en/baldium/account/permissions
+	version CHAR(36) NOT NULL,				-- The token version. Changes when a token needs to be invalidated.
 	UNIQUE KEY uniq_user (username, email, discord),
 	UNIQUE KEY uniq_discord (discord)
 );
 CREATE TABLE IF NOT EXISTS discord (
-	id BIGINT PRIMARY KEY NOT NULL,
-	refresh_token VARCHAR(128),
-	access_token VARCHAR(128),
+	id BIGINT PRIMARY KEY NOT NULL,			-- The user ID
+	refresh_token VARCHAR(128),				-- The refresh token provided by Discord allows for the generation of access tokens. It is encrypted.
+	access_token VARCHAR(128),				-- 
 	FOREIGN KEY (id) REFERENCES accounts(discord) ON DELETE CASCADE
 );
 
@@ -27,22 +28,28 @@ CREATE TABLE IF NOT EXISTS recovry ( -- List of accounts that have forgotten the
 	FOREIGN KEY (email) REFERENCES accounts(email) ON DELETE CASCADE -- If the user's account is deleted, the request is also deleted.
 );
 
-CREATE TABLE IF NOT EXISTS connections ( -- This table is used when a user logs in from a new location. A verification email is sent to them.
-	email VARCHAR(40) PRIMARY KEY, -- the account email
-	code VARCHAR(64) DEFAULT NULL, -- The hashed version of the code
-	code_expire_in BIGINT DEFAULT NULL, -- The code expires after 5 minutes.
-	attempts TINYINT DEFAULT 0,
-	FOREIGN KEY (email) REFERENCES accounts(email) ON DELETE CASCADE -- When the user deletes their account, it is also deleted here.
+CREATE TABLE IF NOT EXISTS connections (								-- This table is used when a user logs in from a new location. A verification email is sent to them.
+	email VARCHAR(40) PRIMARY KEY,										-- The account email
+	code VARCHAR(64) DEFAULT NULL,										-- The hashed version of the code
+	code_expire_in BIGINT DEFAULT NULL,									-- The code expires after 5 minutes.
+	attempts TINYINT DEFAULT 0,											-- The number of attempts. This number increases each time the user enters an incorrect code.
+	FOREIGN KEY (email) REFERENCES accounts(email) ON DELETE CASCADE	-- When the user deletes their account, it is also deleted here.
 );
 
-CREATE TABLE IF NOT EXISTS mods ( -- This table contains the list of mods installed on the server.
-	id VARCHAR(8) PRIMARY KEY, -- The modrinth ID of the mod
-	version VARCHAR(32) -- The mod version
+CREATE TABLE IF NOT EXISTS mods (	-- This table contains the list of mods installed on the server.
+	id VARCHAR(8) PRIMARY KEY,		-- The modrinth ID of the mod
+	version VARCHAR(32) NOT NULL	-- The mod version
 );
 
 CREATE TABLE IF NOT EXISTS mod_dependencies (
 	mod_id VARCHAR(8) NOT NULL REFERENCES mods(id) ON DELETE CASCADE,
 	dependency_id VARCHAR(8) NOT NULL REFERENCES mods(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS backup (
+	frequency BIGINT DEFAULT 24,	-- Time between backups in hours
+	webhook TEXT DEFAULT NULL,		-- The WebHook URL; it is designed to work with Discord, but a different URL can be provided.
+	last_backup BIGINT DEFAULT 0	-- The date the last back was sent.
 );
 
 DELIMITER $$

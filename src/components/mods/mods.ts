@@ -1,6 +1,6 @@
 import { mkdir } from "fs/promises";
-import Download from "./files/download";
-import queryAsync from "./queryAsync";
+import Download from "../files/download";
+import queryAsync from "../queryAsync";
 
 type ModDetails = {
 	game_versions: string[],

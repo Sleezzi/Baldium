@@ -12,7 +12,6 @@ const Download = async (url: string, path: string) => new Promise<void>(async (r
 		response.body.pipe(writer);
 		writer.on("finish", () => resolve());
 		writer.on("error", () => error());
-
 	} catch (err) {
 		return error(err);
 	}

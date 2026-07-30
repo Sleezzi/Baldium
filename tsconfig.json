@@ -7,6 +7,6 @@
 		"moduleResolution": "node",
 		"esModuleInterop": true
 	},
-	"include": ["src", "tsconfig.json", "builder.js", "types"],
+	"include": ["src", "tsconfig.json", "builder.js", "types", "src/middleware/Multipart.ts"],
 	"exclude": ["node_modules", "dist"]
 }

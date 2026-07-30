@@ -12,7 +12,10 @@ const route: HTTP<{
 		password: string,
 	}
 }, {
-	userId: number
+	user: {
+		id: number,
+		version: string
+	}
 }> = {
 	method: "POST",
 	schema: {
@@ -32,9 +35,9 @@ const route: HTTP<{
 	prehandler: async (request, response, done) => {
 		const body = request.body;
 			
-		const hashs: { id: number, username: string, email: string, hash: string }[] = await queryAsync("SELECT id, username, email, hash FROM accounts WHERE username = ? OR email = ?", body.id.toLowerCase(), body.id.toLowerCase()) as any;
-		if (hashs.length === 0) {
-			await Logs(null, "The client attempted to log in, but their account was not found in the database", request.ip);
+		const accounts: { id: number, username: string, email: string, hash: string, version: string }[] = await queryAsync("SELECT id, username, email, hash, version FROM accounts WHERE username = ? OR email = ?", body.id.toLowerCase(), body.id.toLowerCase()) as any;
+		if (accounts.length === 0) {
+			await Logs(null, "The client attempted to log in, but their account was not found in the database", request.clientIP);
 			return response
 			.status(401)
 			.setCookie(
@@ -50,9 +53,9 @@ const route: HTTP<{
 			});
 		}
 		
-		const isValid = await compare(body.password, hashs[0].hash);
+		const isValid = await compare(body.password, accounts[0].hash);
 		if (!isValid) {
-			await Logs(hashs[0].id, "The client attempted to log in, but the password they provided is not the same as the one in the database", request.ip);
+			await Logs(accounts[0].id, "The client attempted to log in, but the password they provided is not the same as the one in the database", request.clientIP);
 			return response
 			.setCookie(
 				"token",
@@ -67,12 +70,15 @@ const route: HTTP<{
 				response: "Invalid password"
 			});
 		}
-		(request as any).userId = hashs[0].id;
+		(request as any).user = {
+			id: accounts[0].id,
+			version: accounts[0].version
+		}
 	},
 	handler: async (request, response) => {
 		try {
-			const token = generateToken(request.userId);
-			await Logs(request.userId, "The client logged in and was provided with a token", request.ip);
+			const token = generateToken(request.user.id, request.user.version);
+			await Logs(request.user.id, "The client logged in and was provided with a token", request.clientIP);
 			
 			response
 			.status(200)
@@ -80,10 +86,11 @@ const route: HTTP<{
 				"token",
 				token,
 				{
-					maxAge: Date.now() + 2629743,
-					secure: true,
-					domain: ".sleezzi.fr",
-					sameSite: "none"
+					path: "/",
+					maxAge: 2629743,
+					secure: process.env.DEBUG === "FALSE",
+					httpOnly: true,
+					sameSite: process.env.DEBUG === "FALSE" ? "none" : "lax"
 				}
 			)
 			.send({

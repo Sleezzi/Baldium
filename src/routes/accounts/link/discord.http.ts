@@ -53,7 +53,7 @@ const route: HTTP<{
 	handler: async (request, response) => {
 		try {
 			const adress = request.url;
-			console.log(adress);
+			console.log(adress, `${process.env.DEBUG === "TRUE" ? request.protocol : "https"}://${request.host}`);
 			// const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
 			// 	method: "POST",
 			// 	headers: {
@@ -64,12 +64,12 @@ const route: HTTP<{
 			// 		client_secret: process.env.DISCORD_CLIENT_SECRET!,
 			// 		grant_type: "authorization_code",
 			// 		code: code,
-			// 		redirect_uri: `https://${request.get("host")}${request.path.split("?")[0]}`,
+			// 		redirect_uri: `${process.env.DEBUG === 1 ? request.get("protocole") : "https"}://${request.get("host")}${request.path.split("?")[0]}`,
 			// 	})
 			// });
 
 			// if (!tokenResponse.ok) {
-			// 	await Logs(userId, "The client attempted to link their Discord account but did not provide a valid code", request.ip);
+			// 	await Logs(userId, "The client attempted to link their Discord account but did not provide a valid code", request.clientIP);
 			// 	console.log(await tokenResponse.json(), `https://${request.get("host")}${request.path.split("?")[0]}`);
 			// 	
 			// 	return response
@@ -88,7 +88,7 @@ const route: HTTP<{
 			// .then((_response) => _response.json());
 			
 			// if (!("id" in discord)) {
-			// 	await Logs(userId, "The client attempted to link their Discord account but did not provide a valid code", request.ip);
+			// 	await Logs(userId, "The client attempted to link their Discord account but did not provide a valid code", request.clientIP);
 			// 	
 			// 	return response
 				// 	.status(404)
@@ -98,7 +98,7 @@ const route: HTTP<{
 			// const accounts: { id: number }[] = await queryAsync("SELECT id FROM accounts WHERE discord = ? AND id != ?", discord.id, userId);
 
 			// if (accounts.length > 0) {
-			// 	await Logs(userId, "The client attempted to link their Discord account but provided a token linked to a Discord account already linked to another account", request.ip);
+			// 	await Logs(userId, "The client attempted to link their Discord account but provided a token linked to a Discord account already linked to another account", request.clientIP);
 			// 	
 			// 	return response
 				// 	.status(403)
@@ -106,7 +106,7 @@ const route: HTTP<{
 				// 	.send("This Discord account is already linked to another account.");
 			// }
 			
-			// await Logs(userId, "The client links their account to a Discord account", request.ip);
+			// await Logs(userId, "The client links their account to a Discord account", request.clientIP);
 			
 			// await queryAsync("UPDATE accounts SET discord = ? WHERE id = ?", discord.id, userId);
 			// await queryAsync("UPDATE discord SET access_token = ?, refresh_token = ? WHERE id = ?", cipher(tokens.access_token), cipher(tokens.refresh_token), discord.id);

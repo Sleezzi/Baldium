@@ -9,7 +9,8 @@ const route: Socket = async (client, args, reply) => {
 			active: !!isActive,
 			name: process.env.MINECRAFT_NAME,
 			version: process.env.VERSION,
-			modloader: process.env.MODLOADER
+			modloader: process.env.MODLOADER,
+			ip: process.env.MINECRAFT_DOMAIN
 		});
 	} catch (err) {
 		console.error(err);

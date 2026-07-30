@@ -2,7 +2,7 @@ import { Socket } from "../../../types/Route";
 import queryAsync from "../../components/queryAsync";
 import Logs from "../../components/logs";
 import { checkPermission } from "../../components/account";
-import Mod from "../../components/mods";
+import Mod from "../../components/mods/mods";
 import { Trigger } from "../../components/subscription";
 
 const downloadMod = async (mod: Mod) => {

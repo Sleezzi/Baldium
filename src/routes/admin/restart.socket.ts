@@ -15,7 +15,7 @@ const route: Socket = async (client, args, reply) => {
 		await Logs(client.userId, `The client restart the api's container`, client.ip);
 		Trigger("console", `[DASHBOARD] The user with the id "${client.userId}" restarted the api`);
 		reply(200, "Success");
-		await docker.sendAction("Restart");
+		await docker.sendAction("RestartMe");
 	} catch (err) {
 		console.error(err);
 		reply(502, "Internal error");

@@ -1,8 +1,8 @@
-import { HTTP } from "../../../types/Route";
-import queryAsync from "../../components/queryAsync";
+import { HTTP } from "../../../../types/Route";
+import queryAsync from "../../../components/queryAsync";
 
-import Logs from "../../components/logs";
-import sendMail from "../../components/sendMail";
+import Logs from "../../../components/logs";
+import sendMail from "../../../components/sendMail";
 
 import { createHash, randomInt } from "crypto";
 import domino from "domino";
@@ -55,7 +55,7 @@ const route: HTTP<{
 	prehandler: async (request, response, done) => {
 		const body = request.body;
 		if (!body.toLowerCase().match(/[a-z0-9\.-]{1,}@[a-z0-9\.-]{1,}\.[a-z]{2,5}/)) {
-			await Logs(null, "The client attempted to reset their password, but the email address they provided is invalid.", request.ip);
+			await Logs(null, "The client attempted to reset their password, but the email address they provided is invalid.", request.clientIP);
 			return response.status(400).send({
 				status: 400,
 				response: "Invalid email"
@@ -71,9 +71,9 @@ const route: HTTP<{
 				const hash = createHash("sha256").update(code).digest("hex");
 				await queryAsync("INSERT INTO recovry (email, code, expireAt) VALUES (?, ?, ?)", body.toLowerCase(), hash, new Date(Date.now() / 1000 + 1000 * 60 * 15).valueOf());
 				await sendMail(body.toLowerCase(), "Reset password", createContent(accounts[0].username, code));
-				await Logs(accounts[0].id, "The client has reset their password.", request.ip);
+				await Logs(accounts[0].id, "The client has reset their password.", request.clientIP);
 			} else {
-				await Logs(null, "The client tried to reset their password, but their account does not exist.", request.ip);
+				await Logs(null, "The client tried to reset their password, but their account does not exist.", request.clientIP);
 			}
 			setTimeout(async () => {
 				try {

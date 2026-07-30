@@ -9,7 +9,7 @@ const route: Socket = async (client, args: number, reply) => {
 			reply(400, "Can't find the user's accounts");
 			return;
 		}
-		if (args !== client.userId && !checkPermission("admin", client.permissions)) {
+		if (!checkPermission("admin", client.permissions)) {
 			reply(403, "You do not have permission to access another user's profile");
 			return;
 		}

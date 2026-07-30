@@ -3,14 +3,8 @@ import { Socket } from "../../../types/Route";
 import Logs from "../../components/logs";
 import { checkPermission } from "../../components/account";
 import fsExist from "../../components/files/fsExist";
-
-const hiddens = [
-	// "*.env", // Already filtred
-	".rcon-cli.yaml",
-	"run.bat",
-	"run.sh",
-	"eula.txt"
-];
+import unauthorizeds from "../../components/files/Unauthorized";
+import { join } from "path";
 
 const route: Socket = async (client, args: string, reply) => {
 	try {
@@ -24,13 +18,22 @@ const route: Socket = async (client, args: string, reply) => {
 			reply(400, "Invalid path");
 			return;
 		}
-		if (args.includes("./")) {
-			await Logs(client.userId, `The client attempted to list files from a folder but did not provide a path\n /!\\ The path "${args}" contained ./ which likely means the user attempted to view files outside the server folder`, client.ip);
-			reply(404, "Folder not found");
-			return;
+		for (const unauthorized of unauthorizeds) {
+			if (typeof unauthorized === "string") {
+				if (unauthorized === args) {
+					await Logs(client.userId, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
+					reply(404, "File not found");
+					return;
+				}
+			}
+			if (args.match(unauthorized)) {
+				await Logs(client.userId, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
+				reply(404, "File not found");
+				return ;
+			}
 		}
 		
-		const path = `${process.env.SERVER_PATH}${!args.startsWith("/") && "/"}${args}${!args.endsWith("/") && args.length > 0 ? "/" : ""}`;
+		const path = join(process.env.SERVER_PATH!, args);
 		
 		if (!await fsExist(path) || !(await stat(path)).isDirectory()) {
 			await Logs(client.userId, `The client attempted to list files in a folder, but it does not exist`, client.ip);
@@ -42,7 +45,15 @@ const route: Socket = async (client, args: string, reply) => {
 		
 		const files = (await readdir(path, { withFileTypes: true }))
 		.filter((file) => file.isDirectory() || file.isFile())
-		.filter((file) => !file.name.endsWith(".env") && !hiddens.find((_path) => `${path}${_path}` === `${path}${file.name}`))
+		.filter((file) => {
+			for (const unauthorized of unauthorizeds) {
+				if (typeof unauthorized === "string") {
+					if (unauthorized === `${path}${file.name}`) return false;
+				}
+				if (`${path}${file.name}`.match(unauthorized)) return false;
+			}
+			return true;
+		})
 		.map((file) => ({ path: file.name, type: file.isDirectory() ? "folder" : "file" }));
 		
 		reply(200, files);

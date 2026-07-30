@@ -1,9 +1,10 @@
 import domino from "domino";
-import Logs from "../../components/logs";
-import queryAsync from "../../components/queryAsync";
-import { Socket } from "../../../types/Route";
-import sendMail from "../../components/sendMail";
-import connections from "../../components/connections";
+import Logs from "../../../components/logs";
+import queryAsync from "../../../components/queryAsync";
+import { Socket } from "../../../../types/Route";
+import sendMail from "../../../components/sendMail";
+import connections from "../../../components/connections";
+import { decipher } from "../../../components/crypt";
 
 
 const route: Socket = async (client, args, reply) => {
@@ -29,7 +30,7 @@ const route: Socket = async (client, args, reply) => {
 		footer.textContent = "We are sorry to lose you. If this deletion is due to a problem, please let us know at contact@sleezzi.fr";
 		content.appendChild(footer);
 
-		await sendMail(accounts[0].email, "Deleting your account", content);
+		await sendMail(decipher(accounts[0].email), "Deleting your account", content);
 		await queryAsync("DELETE FROM accounts WHERE id = ? LIMIT 1", client.userId);
 		reply(200, "Success");
 		connections.delete(client.userId);
