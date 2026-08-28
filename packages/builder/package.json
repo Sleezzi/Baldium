@@ -1,0 +1,11 @@
+{
+	"name": "@baldium/builder",
+	"version": "1.0.0",
+	"private": true,
+	"bin": {
+		"baldium-build": "./builder.js"
+	},
+	"dependencies": {
+		"esbuild": "^0.28.2"
+	}
+}

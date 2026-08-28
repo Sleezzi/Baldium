@@ -1,0 +1,14 @@
+{
+	"name": "@baldium/shared-types",
+	"version": "1.0.0",
+	"private": true,
+	"types": "dist/index.d.ts",
+	"scripts": {
+		"build": "tsc -b"
+	},
+	"devDependencies": {
+		"fastify": "^5.11.3",
+		"typescript": "^5.6.0",
+		"@types/node": "^26.2.0"
+	}
+}
