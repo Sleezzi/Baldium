@@ -3,25 +3,26 @@ import { Socket } from "@baldium/shared-types/src/Route.js";
 import Logs from "../../components/logs";
 import { checkPermission } from "../../components/account";
 import fsExist from "../../components/files/fsExist";
-import { blocklist, isTransversal } from "../../components/files/Unauthorized";
+import { blocklist, isNotTraversal } from "../../components/files/Unauthorized";
 import { Trigger } from "../../components/subscription";
+import { resolve } from "path";
 
 const route: Socket = async (client, args: string, reply) => {
 	try {
 		if (!checkPermission("manage_files", client.permissions)) {
-			await Logs(client.userId, "The client attempted to delete a file but does not have the necessary permissions to do so", client.ip);
+			await Logs(client.userId, "The client attempted to delete files but does not have the necessary permissions to do so", client.ip);
 			reply(403, "You don't have the permission to delete files");
 			return;
 		}
 		if (typeof args !== "string") {
-			await Logs(client.userId, "The client attempted to delete a file but did not provide a valid path to the file", client.ip);
+			await Logs(client.userId, "The client attempted to delete files but did not provide a valid path to the file", client.ip);
 			reply(400, "Invalid path");
 			return;
 		}
 
-		const path = isTransversal(process.env.SERVER_PATH!, args);
+		const path = isNotTraversal(process.env.SERVER_PATH!, args);
 		if (!path) {
-			await Logs(client.userId, "The client attempted to delete a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
+			await Logs(client.userId, "The client attempted to delete files but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
 			reply(404, "File not found");
 			return;
 		}
@@ -30,27 +31,32 @@ const route: Socket = async (client, args: string, reply) => {
 		for (const unauthorized of blocklist) {
 			if (typeof unauthorized === "string") {
 				if (unauthorized === path) {
-					await Logs(client.userId, "The client attempted to delete a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
+					await Logs(client.userId, "The client attempted to delete files but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
 					reply(404, "File not found");
 					return;
 				}
 			}
 			if (path.match(unauthorized)) {
-				await Logs(client.userId, "The client attempted to delete a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
+				await Logs(client.userId, "The client attempted to delete files but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
 				reply(404, "File not found");
 				return;
 			}
 		}
+		if (path === resolve(process.env.SERVER_PATH!)) {
+			await Logs(client.userId, `The client attempted to delete the whole server's files`, client.ip);
+			reply(403, "Not allowed");
+			return;
+		}
 		
 		if (!(await fsExist(path))) {
-			await Logs(client.userId, `The client attempted to delete the file located in ${path} but it's doesn't exist`, client.ip);
+			await Logs(client.userId, `The client attempted to delete the files located in ${path} but it's doesn't exist`, client.ip);
 			reply(404, "File not found");
 			return;
 		}
 		const stats = await stat(path);
 
 		if (!stats.isFile() && !stats.isDirectory()) {
-			await Logs(client.userId, `The client attempted to delete the file located in ${path} but it's not a file or a folder`, client.ip);
+			await Logs(client.userId, `The client attempted to delete the files located in ${path} but it's not a file or a folder`, client.ip);
 			reply(404, "File not found");
 			return;
 		}

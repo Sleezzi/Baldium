@@ -8,7 +8,11 @@ if (!process.env.SOCKET_DOCKER_PROXY) {
 	throw new Error("The address used to connect to the docker's socket proxy is not present in the environment variables.");
 }
 
-const ws = new WebSocket(process.env.SOCKET_DOCKER_PROXY!);
+const ws = new WebSocket(process.env.SOCKET_DOCKER_PROXY!, {
+	headers: {
+		cookie: `pass=${process.env.SOCKET_DOCKER_PROXY_PASSWORD!};`
+	}
+});
 
 const requests = new Map<string, (response: Response["response"]) => void>();
 

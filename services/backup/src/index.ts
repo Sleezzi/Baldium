@@ -8,6 +8,8 @@ import { PassThrough }									from "stream";
 import { deleteBackup, getBackup, uploadStreamToR2 }	from "./components/R2";
 import queryAsync										from "./components/queryAsync";
 import Fastify											from "fastify";
+import { lookup } from "dns/promises";
+import { timingSafeEqual } from "crypto";
 
 
 
@@ -41,7 +43,7 @@ async function ZIP() {
 	archive.glob("**/*", {
 		cwd: "/minecraft/world/",
 		dot: true,
-		ignore: ["session.lock"]
+		ignore: ["session.lock"] // The server continuously writes to Session.lock, so it is best not to back it up to avoid data corruption.
 	});
 
 	archive.pipe(output);
@@ -62,11 +64,12 @@ async function Backup() {
 
 	console.log("Database backup quota check");
 
-	const backupsInBase = await getBackup(prefix);
+	const backupsInBase = (await getBackup(prefix)).sort();
 
-	if (backupsInBase.length + 1 >= keep) {
-		console.log("The database backup quota is about to be exceeded.");
-		for (const backup of backupsInBase.slice(0, keep)) {
+	const excess = backupsInBase.length + 1 - keep;
+	if (excess > 0) {
+		console.log(`The database backup quota is about to be exceeded. Deleting ${excess} old backup`);
+		for (const backup of backupsInBase.slice(0, excess)) {
 			await deleteBackup(backup);
 			console.log(`The backup "${backup}" has been deleted.`);
 		}
@@ -130,13 +133,19 @@ async function Backup() {
 			body: {
 				type: "number",
 				minimum: 6,
+			},
+			headers: {
+				
 			}
+		},
+		preHandler: () => {
+			
 		},
 		handler: (request, response) => {
 			const body = request.body as number;
-			if (!body || typeof body !== "number") return response.status(400);
+			if (!body || typeof body !== "number") return response.status(400).send();
 			frequency = body;
-			response.status(200);
+			response.status(200).send();
 		}
 	});
 	app.route({
@@ -150,9 +159,9 @@ async function Backup() {
 		},
 		handler: (request, response) => {
 			const body = request.body as number;
-			if (!body || typeof body !== "number") return response.status(400);
+			if (!body || typeof body !== "number") return response.status(400).send();
 			keep = body;
-			response.status(200);
+			response.status(200).send();
 		}
 	});
 	app.route({
@@ -160,8 +169,20 @@ async function Backup() {
 		url: "/backup",
 		handler: async (request, response) => {
 			await Backup();
-			response.status(200);
+			response.status(200).send();
 		}
+	});
+
+	app.addHook("onRequest", async (request, reply) => {
+		if (!request.socket.remoteAddress) return reply.code(403).send();
+		const { address } = await lookup(process.env.API_HOST!);
+		if (request.socket.remoteAddress.replace("::ffff:", "") !== address) return reply.code(403).send();
+
+		const secret = request.headers["x-internal-secret"];
+		if (!secret) return reply.code(403).send();
+		
+		if (process.env.INTERNAL_SECRET!.length !== secret.toString().length) return reply.code(403).send();
+		if (!timingSafeEqual(Buffer.from(secret.toString()), Buffer.from(process.env.INTERNAL_SECRET!))) return reply.code(403).send();
 	});
 
 	const port = Number(process.env.HTTP_PORT) || 80;

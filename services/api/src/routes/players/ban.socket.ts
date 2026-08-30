@@ -22,7 +22,7 @@ const route: Socket = async (client, args: string, reply) => {
 		}
 
 		await Logs(client.userId, `The client banned the player "${args}"`, client.ip);
-		await rcon.send(`ban ${args} Banned from the pannel`);
+		await rcon.send(`ban ${args} Banned from the dashboard`);
 		
 		reply(200, "Success");
 	} catch (err) {

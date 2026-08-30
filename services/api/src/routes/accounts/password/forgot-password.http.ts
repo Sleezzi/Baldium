@@ -75,7 +75,7 @@ const route: HTTP<{
 				const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
 				const hash = createHash("sha256").update(code).digest("hex");
 
-				await queryAsync("INSERT INTO recovery (email, code, expireAt) VALUES (?, ?, ?)", email_hash, hash, new Date(Date.now() + 1000 * 60 * 15).valueOf());
+				await queryAsync("INSERT INTO recovery (email, code, expireAt) VALUES (?, ?, ?)", email_hash, hash, Math.floor((Date.now() + 1000 * 60 * 15) / 1000));
 				// await sendMail(body.toLowerCase(), "Reset password", createContent(accounts[0].username, code));
 				await Logs(accounts[0].id, "The client has reset their password.", request.clientIP);
 			} else {

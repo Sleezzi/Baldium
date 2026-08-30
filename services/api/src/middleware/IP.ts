@@ -8,23 +8,11 @@ declare module "fastify" {
 	}
 }
 
-function extractClientIp(req: FastifyRequest): string | null {
-	const cfConnectingIp = req.headers["cf-connecting-ip"];
-	if (cfConnectingIp) {
-		return Array.isArray(cfConnectingIp) ? cfConnectingIp[0] : cfConnectingIp;
-	}
-
-	const forwardedFor = req.headers["x-forwarded-for"];
-	if (forwardedFor) {
-		const value = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
-		return value.split(",")[0].trim();
-	}
-
-	if (req.socket.remoteAddress) {
-		return req.socket.remoteAddress;
-	}
-
-	return null;
+function extractClientIP(req: FastifyRequest): string | undefined {
+	const cfConnectingIP = req.headers["cf-connecting-ip"];
+	if (!cfConnectingIP) return;
+	
+	return Array.isArray(cfConnectingIP) ? cfConnectingIP[0] : cfConnectingIP;
 }
 
 
@@ -33,10 +21,8 @@ const middleware = async (app: FastifyInstance) => {
 	await app.register(
 		fp(
 			async (_app: FastifyInstance) => {
-				_app.decorateRequest("clientIp", null);
-
 				_app.addHook("onRequest", async (req, reply) => {
-					const ip = extractClientIp(req);
+					const ip = extractClientIP(req);
 
 					if (!ip) {
 						return reply.code(400).send("Unable to determine client IP");

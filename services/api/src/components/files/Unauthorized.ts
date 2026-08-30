@@ -10,9 +10,9 @@ export const blocklist: (string | RegExp)[] = [
 	"eula.txt",			// Better hidden
 ];
 
-export const isTransversal = (root: string, path: string): false | string => {
+export const isNotTraversal = (root: string, ...path: string[]): false | string => {
 	const resolvedRoot = resolve(root) + sep;
-	const resolvedPath = resolve(join(root, path));
+	const resolvedPath = resolve(join(root, ...path));
 
 	if (
 		!resolvedPath.startsWith(resolvedRoot) &&	// Check if the path start with /minecraft/

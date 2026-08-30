@@ -15,7 +15,7 @@ const route: Socket = async (client, args, reply) => {
 		}
 		const path = `${process.env.SERVER_PATH}/usercache.json`;
 		if (!await fsExist(path)) {
-			throw new Error(`Unable to find the file "${process.env.SERVER_PATH}/usernamecache.json"`);
+			throw new Error(`Unable to find the file "${process.env.SERVER_PATH}/usercache.json"`);
 		}
 		const file: {
 			uuid: string,

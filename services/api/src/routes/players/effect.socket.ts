@@ -36,14 +36,7 @@ const route: Socket = async (client, args: {
 			reply(400, "Invalid request");
 			return;
 		}
-		if (args.set !== "on" && args.set !== "off") {
-			await Logs(client.userId, "The client attempted to apply or remove effects on a player but did not provide the data requested by the server", client.ip);
-			reply(400, "Invalid request");
-			return;
-		}
-		if (args.effect === "minecraft:night_vision") {
-			await rcon.send(`tag ${args.username} ${args.set === "on" ? "add" : "remove"} night_vision`);
-		}
+		
 		if (args.set === "on") {
 			await Logs(client.userId, `The client applied the effect ${args.effect} to "${args.username}" for ${args.duration || 1}s with a strength of ${args.level || 1}`, client.ip);
 			await rcon.send(`effect give ${args.username} ${args.effect}${args.duration ? ` ${args.duration}${args.level ? ` ${args.level}` : ""}` : ""}`)

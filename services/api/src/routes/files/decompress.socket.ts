@@ -3,7 +3,7 @@ import { Socket } from "@baldium/shared-types/src/Route.js";
 import Logs from "../../components/logs";
 import { checkPermission } from "../../components/account";
 import fsExist from "../../components/files/fsExist";
-import { blocklist, isTransversal } from "../../components/files/Unauthorized";
+import { blocklist, isNotTraversal } from "../../components/files/Unauthorized";
 import { join } from "path";
 import { v4 as uuid } from "uuid";
 
@@ -20,7 +20,7 @@ const route: Socket = async (client, args: string, reply) => {
 			return;
 		}
 
-		const path = isTransversal(process.env.SERVER_PATH!, args);
+		const path = isNotTraversal(process.env.SERVER_PATH!, args);
 		if (!path) {
 			await Logs(client.userId, "The client attempted to decompress a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
 			reply(404, "File not found");

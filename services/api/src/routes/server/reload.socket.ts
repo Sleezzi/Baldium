@@ -4,13 +4,13 @@ import { checkPermission } from "../../components//account";
 
 const route: Socket = async (client, args, reply) => {
 	try {
-		if (checkPermission("server", client.permissions)) {
+		if (!checkPermission("server", client.permissions)) {
 			reply(403, "You can't access to this ressource");
 			return;
 		}
-		const response = await rcon.send("reload");
+		await rcon.send("reload");
 		
-		reply(200, response);
+		reply(200, "Reloading");
 	} catch (err) {
 		console.error(err);
 		reply(502, "Internal error");

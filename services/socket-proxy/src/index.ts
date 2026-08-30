@@ -8,6 +8,8 @@ import { WebSocketServer } from "ws";
 import { v4 as uuid } from "uuid";
 import Docker from "dockerode";
 import type { Action, Info, Response } from "@baldium/shared-types/src/Docker";
+import { lookup } from "node:dns/promises";
+import { timingSafeEqual } from "node:crypto";
 
 const connections = new Map<string, (message: Info["request"], args: any) => void>();
 
@@ -91,14 +93,24 @@ const trigger = (message: Info["request"], args: any) => {
 
 const wss = new WebSocketServer({ autoPong: true, port: process.env.PORT as any });
 
-wss.on("connection", (ws) => {
+wss.on("connection", async (ws, request) => {
+	if (!request.socket.remoteAddress) return ws.close();
+	const { address } = await lookup(process.env.API_HOST!);
+	if (request.socket.remoteAddress.replace("::ffff:", "") !== address) return ws.close();
+
+	const secret = request.headers["x-internal-secret"];
+	if (!secret) return ws.close();
+	
+	if (process.env.INTERNAL_SECRET!.length !== secret.toString().length) return ws.close();
+	if (!timingSafeEqual(Buffer.from(secret.toString()), Buffer.from(process.env.INTERNAL_SECRET!))) return ws.close();
+
 	const id = uuid();
 	trigger("log", `[SOCKET] [INFO] A new connection to the socket has been set (${id})`);
-	
+
 	ws.on("message", async (raw) => {
 		try {
-				// Normalizes outgoing responses to the message envelope expected by clients.
-				const reply = (response: any, request: Action, id: string) => {
+			// Normalizes outgoing responses to the message envelope expected by clients.
+			const reply = (response: any, request: Action, id: string) => {
 				try {
 					ws.send(JSON.stringify({
 						type: "response",
@@ -110,7 +122,7 @@ wss.on("connection", (ws) => {
 					console.error(err);
 				}
 			}
-		
+			
 			const message: { id: Response["id"], request: Response["request"] } = JSON.parse(raw.toString());
 			if (!("request" in message)) return;
 			switch (message.request) {

@@ -1,18 +1,20 @@
 import { decode, verify, sign } from "jsonwebtoken";
+import queryAsync from "./queryAsync";
 
 type AuthenticationResult = {
 	success: false,
 	message: string
 } | {
 	success: true,
-	message: {
-		userId: number,
-		version: string
-	}
+	message: number,
 }
 
 function checkToken(token: string) {
 	try {
+		// The "admin" bit grants access to absolutely everything, regardless of min_permission. 
+		// Note: `permissions` must remain a frozen object where `admin` is always a valid bit (1 << 0). 
+		// If `permissions.admin` were ever to become `undefined`, JS would treat it as `0` in the
+		// bitwise operation below without throwing an error—the admin bypass would fail silently.
 		verify(token, process.env.SECRET_KEY!, { algorithms: ["HS256"] });
 		return true;
 	} catch (error) {
@@ -46,15 +48,28 @@ export async function authenticate(token: string): Promise<AuthenticationResult>
 		if (!("userId" in payload)) {
 			return {
 				success: false,
-				message: "MISSING_USERID"
+				message: "INVALID_USERID"
 			}
 		}
+		if (!("version" in payload)) {
+			return {
+				success: false,
+				message: "INVALID_VERSION"
+			}
+		}
+		const version: { version: string, id: number }[] = await queryAsync("SELECT version FROM accounts WHERE id = ?", payload.userId);
+		if (version.length === 0) return {
+			success: false,
+			message: "INVALID_USERID"
+		}
+		if (version[0].version !== payload.version) return {
+			success: false,
+			message: "INVALID_VERSION"
+		}
+
 		return {
 			success: true,
-			message: {
-				userId: payload.userId,
-				version: payload.version
-			}
+			message: payload.userId
 		}
 	} catch (err) {
 		console.error(err);

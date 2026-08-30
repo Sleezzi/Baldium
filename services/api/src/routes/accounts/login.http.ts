@@ -93,9 +93,9 @@ const route: HTTP<{
 				{
 					path: "/",
 					maxAge: 2629743,
-					secure: process.env.DEBUG === "FALSE",
+					secure: !(process.env.DEBUG === "TRUE"),
 					httpOnly: true,
-					sameSite: process.env.DEBUG === "FALSE" ? "none" : "lax"
+					sameSite: process.env.DEBUG === "TRUE" ? "lax" : "none"
 				}
 			)
 			.send({

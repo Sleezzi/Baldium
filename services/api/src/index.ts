@@ -21,11 +21,14 @@ import Logs from "./components/logs";
 import { Trigger, UnsubscribeClient } from "./components/subscription";
 import Fastify, { FastifyPluginAsync } from "fastify";
 import fastifyPlugin from "fastify-plugin";
+import { v4 as uuid } from "uuid";
+
 import type { HTTP, Socket } from "@baldium/shared-types/src/Route";
 import connections from "./components/connections";
 import { authenticate } from "./components/account";
 import { decipher } from "./components/crypt";
 import Message from "@baldium/shared-types/src/Message";
+import { isCloudflare, isCloudflareIp } from "./components/cloudflare";
 
 // Stores socket routes indexed by their URI-like key (e.g. "accounts/about").
 const routes = new Map<string, Socket>();
@@ -119,12 +122,37 @@ wss.on("connection", async (ws, req) => {
 				console.error("[SOCKET]", err);
 			}
 		}
+		if (process.env.DEBUG !== "TRUE") {
+			if (!req.socket.remoteAddress) {
+				Logs(null, "A WebSocket connection was blocked because the server failed to retrieve the connection's IP address.", "0");
+				reply(400, "The server cannot determine which IP address you are using.", "auth", null);
+				ws.close();
+				return;
+			}
+			if (!isCloudflareIp(req.socket.remoteAddress)) {
+				Logs(null, "The IP used does not originate from Cloudflare servers.", req.socket.remoteAddress);
+				reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
+				ws.close();
+				return;
+			}
+			if (!req.headers['x-origin-verify']) {
+				Logs(null, "The IP used does not originate from Cloudflare servers.", req.socket.remoteAddress);
+				reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
+				ws.close();
+				return;
+			}
+			if (!isCloudflare(req.headers['x-origin-verify'].toString())) {
+				Logs(null, "The IP used does not originate from Cloudflare servers.", req.socket.remoteAddress);
+				reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
+				ws.close();
+				return;
+			}
+		}
+
 		// Extracts client IP from trusted proxy headers with socket fallback.
-		const ip = ((): string | null => {
+		const ip = ((): string | undefined => {
+			if (process.env.DEBUG === "TRUE") return req.socket.remoteAddress;
 			if (req.headers['cf-connecting-ip']) return req.headers['cf-connecting-ip'].toString();
-			if (req.headers['x-forwarded-for']) return req.headers['x-forwarded-for'].toString().split(',')[0];
-			if (req.socket.remoteAddress) return req.socket.remoteAddress;
-			return null;
 		})();
 
 		if (!ip) {
@@ -162,9 +190,13 @@ wss.on("connection", async (ws, req) => {
 					await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
 					reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
 					break;
-				case "MISSING_USERID":
-					await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
-					reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
+				case "INVALID_USERID":
+					await Logs(null, "The handshake with the client failed because the userId is invalid.", ip!);
+					reply(403, "Unable to authenticate you because the user ID in the token payload is invalid.", "auth", null);
+					break;
+				case "INVALID_VERSION":
+					await Logs(null, "The handshake with the client failed because the version is invalid.", ip!);
+					reply(403, "Unable to authenticate you because the version in the token payload is invalid.", "auth", null);
 					break;
 				default:
 					reply(500, "Internal error", "auth", null);
@@ -175,21 +207,14 @@ wss.on("connection", async (ws, req) => {
 		}
 		const user = isValid.message;
 		
-		const accounts: { id: number, username: string, permissions: number, discord: number | null, version: string }[] = await queryAsync("SELECT username, permissions, discord, version FROM accounts WHERE id = ? LIMIT 1", user.userId);
+		const accounts: { id: number, username: string, permissions: number, discord: number | null }[] = await queryAsync("SELECT username, permissions, discord FROM accounts WHERE id = ? LIMIT 1", user);
 		if (accounts.length === 0) {
-			await Logs(user.userId, "The handcheck with this client and server failed because the client tried to login as a deleted account.", ip!);
+			await Logs(user, "The handcheck with this client and server failed because the client tried to login as a deleted account.", ip!);
 			reply(403, "It appears that your account has been deleted.", "auth", null);
 			ws.close();
 			return;
 		}
 		const account = accounts[0];
-
-		if (user.version !== account.version) {
-			await Logs(user.userId, "The handcheck with this client and server failed because the client tried to login using an old token.", ip!);
-			reply(403, "This token is no longer valid. Please log in again.", "auth", null);
-			ws.close();
-			return;
-		}
 
 		let discord: string | null = null;
 		if (account.discord !== null) {
@@ -199,15 +224,15 @@ wss.on("connection", async (ws, req) => {
 				discord = decipher(tokens[0].access_token);
 			}
 		}
-		if (connections.has(user.userId)) { // Checks if the user has already connected to the server
-			connections.get(user.userId)!.close("You logged in from an other device"); // Disconnect the user's old connection
+		if (connections.has(user)) { // Checks if the user has already connected to the server
+			connections.get(user)!.close("You logged in from an other device"); // Disconnect the user's old connection
 		}
-		
-		connections.set(user.userId, {
+		const connectionId = uuid();
+		connections.set(user, {
 			close: (reason) => {
 				if (reason) {
 					Trigger("client", {
-						userId: user.userId,
+						userId: user,
 						reason: "disconnection",
 						args: reason
 					});
@@ -222,20 +247,19 @@ wss.on("connection", async (ws, req) => {
 					object: object,
 				}));
 			},
-			permissions: account.permissions
+			connectionId: connectionId,
+			permissions: account.permissions,
 		});
 
-		const currentSend = connections.get(user.userId)!.send;
-		
 		reply(200, {
-			userId: user.userId,
+			userId: user,
 			username: account.username,
 			permissions: account.permissions,
 			discord: discord
 		}, "auth", null);
 
 		const client = {
-			userId: user.userId,
+			userId: user,
 			permissions: account.permissions,
 			discord: account.discord
 		};
@@ -255,11 +279,25 @@ wss.on("connection", async (ws, req) => {
 					return;
 				}
 				const route = routes.get(message.request)!;
+
+				// We re-read the up-to-date permissions from the "connections" map rather than
+				// relying on the value captured once at authentication.
+				// This allows a permission revocation to take effect immediately
+				// on an already open connection.
+				const connection = connections.get(client.userId);
+				if (!connection) {
+					await Logs(client.userId, `The client sent a message via the WebSocket, but their session could not be found in the \`connections\` map.`, ip);
+					reply(403, "Invalid session", message.request, message.id);
+					ws.close();
+					return;
+				}
 				
 				await Logs(client.userId, `The client sent a message to the server requesting the route ${message.request}. It was therefore correctly redirected to it.`, ip);
 				route(
 					{
-						...client,
+						userId: client.userId,
+						discord: client.discord,
+						permissions: connection.permissions,
 						ip: ip,
 					},
 					message.args,
@@ -274,8 +312,8 @@ wss.on("connection", async (ws, req) => {
 				if (!client.userId) return;
 				UnsubscribeClient(client.userId);
 
-				const connection = connections.get(user.userId)!.send;
-				if (currentSend === connection) connections.delete(client.userId); // If the user logs in twice simultaneously, this verifies that the first session is the one that gets deleted.
+				const connection = connections.get(user)!.connectionId;
+				if (connectionId === connection) connections.delete(client.userId); // If the user logs in twice simultaneously, this verifies that the first session is the one that gets deleted.
 
 				Logs(client.userId, "The client has disconnected from the WebSocket", ip);
 			} catch (err) {

@@ -11,7 +11,7 @@ const route: Socket = async (client, args, reply) => {
 		}
 		await docker.sendAction("Start");
 		
-		reply(200, "Stopped");
+		reply(200, "Starting");
 		Trigger("server_status", "started");
 	} catch (err) {
 		console.error(err);

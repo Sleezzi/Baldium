@@ -59,7 +59,7 @@ const route: HTTP<{
 			// 		client_secret: process.env.DISCORD_CLIENT_SECRET!,
 			// 		grant_type: "authorization_code",
 			// 		code: code,
-			// 		redirect_uri: `${process.env.DEBUG === 1 ? request.get("protocole") : "https"}://${request.get("host")}${request.path.split("?")[0]}`,
+			// 		redirect_uri: `${process.env.DEBUG === "TRUE" ? request.get("protocole") : "https"}://${request.get("host")}${request.path.split("?")[0]}`,
 			// 	})
 			// });
 

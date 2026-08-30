@@ -15,7 +15,7 @@ const route: Socket = async (client, args: string, reply) => {
 			reply(400, "Invalid player name");
 			return;
 		}
-		if (typeof args !== "string") {
+		if (typeof args !== "string" || args.includes("@")) {
 			await Logs(client.userId, "The client attempted to kill a player but did not provide the data requested by the server", client.ip);
 			reply(400, "Invalid player name");
 			return;

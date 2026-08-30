@@ -1,16 +1,15 @@
 import { HTTP } from "@baldium/shared-types/src/Route.js";
 import queryAsync from "../../../components/queryAsync";
 
-import { createReadStream, createWriteStream } from "fs";
+import { createReadStream } from "fs";
 import Logs from "../../../components/logs";
 import { checkPermission } from "../../../components/account";
 import { authenticate } from "../../../components/account";
-import { blocklist, isTransversal } from "../../../components/files/Unauthorized";
+import { blocklist, isNotTraversal } from "../../../components/files/Unauthorized";
 import fsExist from "../../../components/files/fsExist";
 import { createInterface } from "readline/promises";
 import { FastifyReply } from "fastify";
 import { decipher } from "../../../components/crypt";
-import { join } from "path";
 
 async function flushBatch(
 	rawLines: string[],
@@ -103,30 +102,37 @@ const route: HTTP<{
 			switch (connection.message) {
 				case "INVALID_TOKEN":
 					await Logs(null, "The client attempted to retrieve a log file but did not provide a valid token", request.clientIP);
-					return response.status(401).send({
-						status: 401,
-						response: "Invalid request"
+					response.status(401).send({
+						response: "Invalid token",
+						status: 401
 					});
 					break;
 				case "MISSING_PAYLOAD":
 					await Logs(null, "The client attempted to retrieve a log file but did not provide a valid token", request.clientIP);
-					response.status(401).send({
-						response: "We are unable to properly authenticate the user because the userId is missing from the token's playload",
-						status: 401
+					response.status(403).send({
+						response: "We are unable to properly authenticate the user because the token's payload is not readable",
+						status: 403
 					});
 					break;
 				case "INVALID_PAYLOAD":
 					await Logs(null, "The client attempted to retrieve a log file but did not provide a valid token", request.clientIP);
-					response.status(401).send({
-						response: "We are unable to properly authenticate the user because the userId is missing from the token's playload",
-						status: 401
+					response.status(403).send({
+						response: "We are unable to properly authenticate the user because the token's payload is not readable",
+						status: 403
 					});
 					break;
-				case "MISSING_USERID":
+				case "INVALID_USERID":
+					await Logs(null, "The handshake with the client failed because the userId is invalid.", request.clientIP);
+					response.status(403).send({
+						response: "Unable to authenticate you because the user ID in the token payload is invalid.",
+						status: 403
+					});
+					break;
+				case "INVALID_VERSION":
 					await Logs(null, "The client attempted to retrieve a log file but did not provide a valid token", request.clientIP);
-					response.status(401).send({
-						response: "We are unable to properly authenticate the user because the userId is missing from the token's playload",
-						status: 401
+					response.status(403).send({
+						response: "Unable to authenticate you because the version in the token payload is invalid.",
+						status: 403
 					});
 					break;
 				default:
@@ -139,7 +145,7 @@ const route: HTTP<{
 			return;
 		}
 		const user = connection.message;
-		const accounts: { id: string, permissions: number, version: string }[] = await queryAsync("SELECT permissions, version FROM accounts WHERE id = ? LIMIT 1", user.userId);
+		const accounts: { id: string, permissions: number }[] = await queryAsync("SELECT permissions FROM accounts WHERE id = ? LIMIT 1", user);
 		if (accounts.length === 0) {
 			await Logs(null, "The client attempted to retrieve a log file but did not provide a valid token", request.clientIP);
 			response
@@ -150,18 +156,8 @@ const route: HTTP<{
 			});
 			return;
 		}
-		if (accounts[0].version !== user.version) {
-			await Logs(user.userId, "The client attempted to retrieve a log file but the token is invalid", request.clientIP);
-			response
-			.status(403)
-			.send({
-				response: "Invalid token",
-				status: 403
-			});
-			return;
-		}
 		if (!checkPermission("admin", accounts[0].permissions)) {
-			await Logs(user.userId, "The client attempted to retrieve a log file but their account does not have the necessary permissions", request.clientIP);
+			await Logs(user, "The client attempted to retrieve a log file but their account does not have the necessary permissions", request.clientIP);
 			response.status(403).send({
 				response: "You can't access to this ressource",
 				status: 403
@@ -170,7 +166,7 @@ const route: HTTP<{
 		}
 
 		if (!request.query.user.match(/^[0-9]*$/)) {
-			await Logs(user.userId, "The client attempted to retrieve a log file but did not provide a valid userId.", request.clientIP);
+			await Logs(user, "The client attempted to retrieve a log file but did not provide a valid userId.", request.clientIP);
 			response
 			.status(400)
 			.send({
@@ -180,7 +176,7 @@ const route: HTTP<{
 			return;
 		}
 		if (!request.query.file.endsWith(".log")) {
-			await Logs(user.userId, "The client attempted to retrieve a log file but did not provide a valid file.", request.clientIP);
+			await Logs(user, "The client attempted to retrieve a log file but did not provide a valid file.", request.clientIP);
 			response
 			.status(400)
 			.send({
@@ -189,11 +185,11 @@ const route: HTTP<{
 			});
 			return;
 		}
-		(request as any).userId = user.userId;
+		(request as any).userId = user;
 
-		const path = isTransversal(process.env.LOGS_PATH!, join(request.query.user, request.query.file));
+		const path = isNotTraversal(process.env.LOGS_PATH!, request.query.user, request.query.file);
 		if (!path) {
-			await Logs(user.userId, "The client attempted to retrieve a log file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
+			await Logs(user, "The client attempted to retrieve a log file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
 			response
 			.status(404)
 			.send({
@@ -205,7 +201,7 @@ const route: HTTP<{
 		for (const unauthorized of blocklist) {
 			if (typeof unauthorized === "string") {
 				if (unauthorized === path) {
-					await Logs(user.userId, "The client attempted to retrieve a log file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
+					await Logs(user, "The client attempted to retrieve a log file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
 					response
 			.status(404)
 			.send({
@@ -216,7 +212,7 @@ const route: HTTP<{
 				}
 			}
 			if (path.match(unauthorized)) {
-				await Logs(user.userId, "The client attempted to retrieve a log file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
+				await Logs(user, "The client attempted to retrieve a log file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
 				response
 				.status(404)
 				.send({

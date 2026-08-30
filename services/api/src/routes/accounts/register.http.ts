@@ -59,7 +59,7 @@ const route: HTTP<{
 				response: "Invalid username"
 			});
 		}
-		if (!body.email.match(/^[a-z0-9\.-]{1,}@[a-z0-9\.-]{1,}\.[a-z]{2,5}$/)) {
+		if (!body.email.toLowerCase().match(/^[a-z0-9\.-]{1,}@[a-z0-9\.-]{1,}\.[a-z]{2,5}$/)) {
 			await Logs(null, "The client attempted to register but provided an invalid email in the body of their request", request.clientIP);
 			
 			return response.status(400).send({
@@ -104,12 +104,17 @@ const route: HTTP<{
 			
 			await Logs(account.id, "The client created an account", request.clientIP);
 			
-			if (account.id === 1) { // The first account created is an administrator by default. This allows the user to grant permissions to other accounts.
-				await Logs(account.id, "The client created an account", request.clientIP);
-
+			if (account.id === 1) {
+				// ⚠️ The first account created on an instance automatically becomes an administrator. 
+				// This assumes that registration is closed to the public (or the service is inaccessible
+				// from the outside) until the first administrator has been created: on an exposed
+				// deployment, the first person to register—not necessarily the server owner—
+				// will obtain admin rights. 
+				// Furthermore, this check relies solely on the auto-incremented ID being 1: if that account
+				// is ever deleted and the table is emptied/reset (via TRUNCATE or by resetting
+				// AUTO_INCREMENT), the next account created with ID 1 will become an admin without validation.
 				await queryAsync("UPDATE accounts SET permissions = 1 WHERE id = 1 LIMIT 1");
 			}
-
 			
 			const token = generateToken(account.id, version);
 
@@ -120,9 +125,9 @@ const route: HTTP<{
 				{
 					path: "/",
 					maxAge: 2629743,
-					secure: process.env.DEBUG === "FALSE",
+					secure: !(process.env.DEBUG === "TRUE"),
 					httpOnly: true,
-					sameSite: process.env.DEBUG === "FALSE" ? "none" : "lax"
+					sameSite: process.env.DEBUG === "TRUE" ? "lax" : "none"
 				}
 			)
 			.status(200)

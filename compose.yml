@@ -55,7 +55,6 @@ services:
       dockerfile: "node.Dockerfile"
       args:
         SERVICE_NAME: "socket-proxy"
-    image: "baldium/socket-proxy:latest"
     container_name: "baldium-socket-proxy"
     userns_mode: "host"
     user: "0:0"
@@ -68,7 +67,11 @@ services:
     environment:
       MINECRAFT_CONTAINER: "baldium-server"
       API_CONTAINER: "baldium-api"
+      API_HOST: "baldium-api"
       PORT: 85
+      # INTERNAL_SECRET: "password1234"
+    env_file:
+      - ./services/socket-proxy/.env
     deploy:
       resources:
         limits:
@@ -94,6 +97,7 @@ services:
     env_file:
       - ./services/backup/.env
     environment:
+      API_HOST: "api"
       WORLD_PATH: "/minecraft"
       # DATABASE_USER: "backup"
       # DATABASE_PASSWORD: "password1234"
@@ -102,6 +106,7 @@ services:
       # R2_ACCESS_KEY_ID: "access_key"
       # R2_SECRET_ACCESS_KEY: "secret_acess_key"
       # R2_BUCKET_NAME: "baldium"
+      # INTERNAL_SECRET: "password1234"
       DATABASE_HOST: "db"
       HTTP_PORT: 3080
       # WEBHOOK: "https://discord.com/api/webhooks/1234567890/cool.webhook"
@@ -124,7 +129,6 @@ services:
       dockerfile: "node.Dockerfile"
       args:
         SERVICE_NAME: api
-    image: "baldium/api:latest"
     container_name: "baldium-api"
     user: "1000:1000"
     networks:
@@ -157,7 +161,7 @@ services:
     environment:
       # SECRET_KEY: "SUPER_SECRET_KEY"                                                                     # This key is used during token generation and data encryption. It must absolutely remain secret.
       # LOW_SECRET_KEY: "SUPER_SECRET_KEY_BUT_DIFFERENT_FROM_SECRET_KEY"                                   # This key is used for encrypting email addresses. It must be different from SECRET_KEY.
-      MINECRAFT_IP: "minecraft"                                                                       # The name of the container used for the Minecraft server. It allows connection to the server's RCON.
+      MINECRAFT_IP: "minecraft"                                                                            # The name of the container used for the Minecraft server. It allows connection to the server's RCON.
       MINECRAFT_PORT: 25575                                                                                # The port used for RCON by the Minecraft server.
       # MINECRAFT_PASSWORD: "password1234"                                                                 # The login password for the RCON
       # MINECRAFT_NAME: "Exemple"                                                                          # The version used by the Minecraft server
@@ -170,7 +174,7 @@ services:
       # TRUSTED_PROXY: 1                                                                                   # The number of allowed proxies
       # ALLOWED_ORIGIN: "http://localhost:8080 https://dash.exemple.com"                                   # The horns that are allowed. This does not apply to WebSocket
       # DATABASE_USER: "api"                                                                               # The server's database user
-      DATABASE_HOST: "db"                                                                          # The server's database host
+      DATABASE_HOST: "db"                                                                                  # The server's database host
       DATABASE_NAME: "baldium"                                                                             # The server's database name
       # DATABASE_PASSWORD: "password1234"                                                                  # The server's database password
       DATABASE_PORT: 3306                                                                                  # The server's database port
@@ -179,11 +183,18 @@ services:
       # MAIL_PASSWORD: "password1234"                                                                      # The password that the server must use to send emails
       # MAIL_HOST: "mail.exemple.com"                                                                      # The URL that the server should use to send emails
       # MAIL_PORT: 465                                                                                     # The port that the server should use to send emails
-      SOCKET_DOCKER_PROXY: "ws://socket_proxy:85"                                                  # The address for the Docker proxy
-      BACKUP: "backup:3080"                                                                        # The client ID from the Discord application. It is used for authenticating the user via Discord.
+      SOCKET_DOCKER_PROXY: "ws://socket_proxy:85"                                                          # The address for the Docker proxy
+      # INTERNAL_SECRET: "password1234"                                                                    # This secret is used to authenticate requests within internal services (backup, socket_proxy, etc.).
+      BACKUP: "backup:3080"                                                                                # The client ID from the Discord application. It is used for authenticating the user via Discord.
       # DISCORD_CLIENT_ID: "01234567890123456"                                                             # The client ID from the Discord application. It is used for authenticating the user via Discord.
       # DISCORD_CLIENT_SECRET: "Secret_Generated_By_Discord"                                               # The secret client from the Discord application. It is used for user authentication by Discord.
-      # DEBUG: TRUE                                                                                        # Must be TRUE or FALSE
+      
+      #  ***   DEBUG do :                                                                                  # 
+      #  ***     - detailed logging in Fastify                                                             # 
+      #  ***     - disables CORS checks                                                                    # 
+      #  ***     - disables Cloudflare verification                                                        # 
+      #  ***     - disables secure and SameSite cookie attributes                                          # 
+      DEBUG: "FALSE"                                                                                       # Must be TRUE or FALSE
     deploy:
       resources:
         limits:

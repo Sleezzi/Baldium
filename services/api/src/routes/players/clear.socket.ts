@@ -23,7 +23,7 @@ const route: Socket = async (client, args: string, reply) => {
 
 		await Logs(client.userId, `The client deleted the inventory of "${args}"`, client.ip);
 		await rcon.send(`clear ${args}`);
-		await rcon.send(`msg ${args} Your inventory has been cleared from the dashboard by an admin from the dashboard.`);
+		await rcon.send(`msg ${args} Your inventory has been cleared by an admin from the dashboard.`);
 		
 		reply(200, "Success");
 	} catch (err) {
