@@ -14,7 +14,6 @@ const route: Socket = async (client, args, reply) => {
 		}
 		const account = accounts[0];
 
-		await Logs(client.userId, "The client has retrieved their profile.", client.ip);
 		reply(200, {
 			username: account.username,
 			email: decipher(account.email)

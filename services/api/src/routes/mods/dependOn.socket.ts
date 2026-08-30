@@ -1,7 +1,7 @@
 import { Socket } from "@baldium/shared-types/src/Route.js";
-import queryAsync from "../../components//queryAsync";
-import Logs from "../../components//logs";
-import { checkPermission } from "../../components//account";
+import queryAsync from "../../components/queryAsync";
+import Logs from "../../components/logs";
+import { checkPermission } from "../../components/account";
 
 const route: Socket = async (client, args: string, reply) => {
 	try {

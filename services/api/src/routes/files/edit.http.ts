@@ -44,7 +44,7 @@ const route: HTTP<{
 	},
 	prehandler: async (request, response, done) => {
 		if (!request.headers.cookie) { // Checks if the client has correctly provided a token in their request
-			await Logs(null, "The client attempted to download the world file but did not provide a valid token", request.clientIP);
+			await Logs(null, "The client attempted to edit a file but did not provide a valid token", request.clientIP);
 			return response.status(403).send({
 				status: 403,
 				response: "Invalid auth"
@@ -52,7 +52,7 @@ const route: HTTP<{
 		}
 		const token = request.headers.cookie.split("; ").find((cookie) => cookie.startsWith("token="));
 		if (!token) { // Checks if the client has correctly provided a token in their request
-			await Logs(null, "The client attempted to download the world file but did not provide a valid token", request.clientIP);
+			await Logs(null, "The client attempted to edit a file but did not provide a valid token", request.clientIP);
 			return response.status(403).send({
 				status: 403,
 				response: "Invalid auth"
@@ -63,21 +63,21 @@ const route: HTTP<{
 		if (!connection.success) {
 			switch (connection.message) {
 				case "INVALID_TOKEN":
-					await Logs(null, "The client attempted to upload a file but did not provide a valid token", request.clientIP);
+					await Logs(null, "The client attempted to edit a file but did not provide a valid token", request.clientIP);
 					response.status(401).send({
 						response: "Invalid token",
 						status: 401
 					});
 					break;
 				case "MISSING_PAYLOAD":
-					await Logs(null, "The client attempted to upload a file but did not provide a valid token", request.clientIP);
+					await Logs(null, "The client attempted to edit a file but did not provide a valid token", request.clientIP);
 					response.status(403).send({
 						response: "We are unable to properly authenticate the user because the token's payload is not readable",
 						status: 403
 					});
 					break;
 				case "INVALID_PAYLOAD":
-					await Logs(null, "The client attempted to upload a file but did not provide a valid token", request.clientIP);
+					await Logs(null, "The client attempted to edit a file but did not provide a valid token", request.clientIP);
 					response.status(403).send({
 						response: "We are unable to properly authenticate the user because the token's payload is not readable",
 						status: 403
@@ -91,7 +91,7 @@ const route: HTTP<{
 					});
 					break;
 				case "INVALID_VERSION":
-					await Logs(null, "The client attempted to upload a file but did not provide a valid token", request.clientIP);
+					await Logs(null, "The client attempted to edit a file but did not provide a valid token", request.clientIP);
 					response.status(403).send({
 						response: "Unable to authenticate you because the version in the token payload is invalid.",
 						status: 403
@@ -109,14 +109,14 @@ const route: HTTP<{
 		const user = connection.message;
 		const accounts: { id: string, permissions: number, version: string }[] = await queryAsync("SELECT permissions FROM accounts WHERE id = ? LIMIT 1", user);
 		if (accounts.length === 0) {
-			await Logs(null, "The client attempted to upload a file but did not provide a valid token", request.clientIP);
+			await Logs(null, "The client attempted to edit a file but did not provide a valid token", request.clientIP);
 			return response.status(401).send({
 				response: "Invalid token",
 				status: 401
 			});
 		}
 		if (!checkPermission("manage_files", accounts[0].permissions)) {
-			await Logs(user, "The client attempted to upload a file, but their account does not have the necessary permissions", request.clientIP);
+			await Logs(user, "The client attempted to edit a file, but their account does not have the necessary permissions", request.clientIP);
 			return response.status(403).send({
 				response: "You can't access to this ressource",
 				status: 403

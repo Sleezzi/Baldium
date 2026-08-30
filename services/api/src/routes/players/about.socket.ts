@@ -4,10 +4,10 @@ import { ungzip } from "pako";
 
 import * as pnbt from "prismarine-nbt";
 
-import rcon from "../../components//rcon";
-import Logs from "../../components//logs";
-import { checkPermission } from "../../components//account";
-import fsExist from "../../components//files/fsExist";
+import rcon from "../../components/con";
+import Logs from "../../components/ogs";
+import { checkPermission } from "../../components/ccount";
+import fsExist from "../../components/iles/fsExist";
 import { blocklist, isNotTraversal } from "../../components/files/Unauthorized";
 
 

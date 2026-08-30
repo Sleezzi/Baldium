@@ -1,5 +1,5 @@
-import queryAsync from "../../components//queryAsync";
-import Logs from "../../components//logs";
+import queryAsync from "../../components/queryAsync";
+import Logs from "../../components/logs";
 import { Socket } from "@baldium/shared-types/src/Route.js";
 
 

@@ -1,9 +1,9 @@
 import { stat, readdir, } from "fs/promises";
 import { Socket } from "@baldium/shared-types/src/Route.js";
-import Logs from "../../components//logs";
-import { checkPermission } from "../../components//account";
-import fsExist from "../../components//files/fsExist";
-import { blocklist, isNotTraversal } from "../../components//files/Unauthorized";
+import Logs from "../../components/logs";
+import { checkPermission } from "../../components/account";
+import fsExist from "../../components/files/fsExist";
+import { blocklist, isNotTraversal } from "../../components/files/Unauthorized";
 import { join } from "path";
 
 const route: Socket = async (client, args: string, reply) => {

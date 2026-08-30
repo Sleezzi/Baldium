@@ -34,6 +34,7 @@ const route: Socket = async (client, args, reply) => {
 		
 		// await sendMail(decipher(account.email), "Deleting your account", content);
 
+		await Logs(client.userId, "The client has deleted their account.", client.ip);
 
 		await queryAsync("DELETE FROM accounts WHERE id = ? LIMIT 1", client.userId);
 

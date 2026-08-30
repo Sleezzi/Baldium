@@ -5,7 +5,6 @@ import Logs from "../../../components/logs";
 const route: Socket = async (client, subscriptionId: string, reply) => {
 	try {
 		if (subscriptionId) {
-			await Logs(client.userId, "The client has unsubscribed from the server's status channel", client.ip);
 			Unsubscribe(subscriptionId);
 			reply(200, "Removed");
 			return;
@@ -22,7 +21,6 @@ const route: Socket = async (client, subscriptionId: string, reply) => {
 			reply(502, "Internal error");
 			return;
 		}
-		await Logs(client.userId, "The client subscribed to channel server's status", client.ip);
 		reply(207, id);
 	} catch (err) {
 		console.error(err);

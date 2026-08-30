@@ -42,7 +42,7 @@ const route: HTTP<{
 	},
 	prehandler: async (request, response, done) => {
 		if (!request.headers.cookie) { // Checks if the client has correctly provided a token in their request
-			await Logs(null, "The client attempted to download the world file but did not provide a valid token", request.clientIP);
+			await Logs(null, "The client attempted to download a file but did not provide a valid token", request.clientIP);
 			return response.status(403).send({
 				status: 403,
 				response: "Invalid auth"
@@ -50,7 +50,7 @@ const route: HTTP<{
 		}
 		const token = request.headers.cookie.split("; ").find((cookie) => cookie.startsWith("token="));
 		if (!token) { // Checks if the client has correctly provided a token in their request
-			await Logs(null, "The client attempted to download the world file but did not provide a valid token", request.clientIP);
+			await Logs(null, "The client attempted to download a file but did not provide a valid token", request.clientIP);
 			return response.status(403).send({
 				status: 403,
 				response: "Invalid auth"
@@ -125,7 +125,7 @@ const route: HTTP<{
 		for (const unauthorized of blocklist) {
 			if (typeof unauthorized === "string") {
 				if (unauthorized === request.query.path) {
-					await Logs(user, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
+					await Logs(user, "The client attempted to download a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
 					response
 					.status(404)
 					.send({
@@ -136,7 +136,7 @@ const route: HTTP<{
 				}
 			}
 			if (request.query.path.match(unauthorized)) {
-				await Logs(user, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
+				await Logs(user, "The client attempted to download a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
 				response.status(404).send({
 					status: 404,
 					response: "File not found"
@@ -146,7 +146,7 @@ const route: HTTP<{
 		}
 		const path = isNotTraversal(process.env.SERVER_PATH!, request.query.path);
 		if (!path) {
-			await Logs(user, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
+			await Logs(user, "The client attempted to download a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
 				response.status(404).send({
 					status: 404,
 					response: "File not found"
@@ -156,7 +156,7 @@ const route: HTTP<{
 		for (const unauthorized of blocklist) {
 			if (typeof unauthorized === "string") {
 				if (unauthorized === path) {
-					await Logs(user, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
+					await Logs(user, "The client attempted to download a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
 					response
 					.status(404)
 					.send({
@@ -167,7 +167,7 @@ const route: HTTP<{
 				}
 			}
 			if (path.match(unauthorized)) {
-				await Logs(user, "The client attempted to edit a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
+				await Logs(user, "The client attempted to download a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", request.clientIP);
 				response.status(404).send({
 					status: 404,
 					response: "File not found"

@@ -1,9 +1,9 @@
 import { Socket } from "@baldium/shared-types/src/Route.js";
-import queryAsync from "../../components//queryAsync";
-import Logs from "../../components//logs";
-import { checkPermission } from "../../components//account";
-import Mod from "../../components//mods/mods";
-import { Trigger } from "../../components//subscription";
+import queryAsync from "../../components/queryAsync";
+import Logs from "../../components/logs";
+import { checkPermission } from "../../components/account";
+import Mod from "../../components/mods/mods";
+import { Trigger } from "../../components/subscription";
 
 const downloadMod = async (mod: Mod) => {
 	const exist = await queryAsync("SELECT * FROM mods WHERE id = ?", mod.id);

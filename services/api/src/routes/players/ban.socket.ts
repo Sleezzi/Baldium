@@ -1,6 +1,6 @@
-import rcon from "../../components//rcon";
-import Logs from "../../components//logs";
-import { checkPermission } from "../../components//account";
+import rcon from "../../components/con";
+import Logs from "../../components/ogs";
+import { checkPermission } from "../../components/ccount";
 import { Socket } from "@baldium/shared-types/src/Route.js";
 
 const route: Socket = async (client, args: string, reply) => {

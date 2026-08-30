@@ -1,10 +1,10 @@
 import { Socket } from "@baldium/shared-types/src/Route.js";
-import rcon from "../../components//rcon";
+import rcon from "../../components/rcon";
 
 import { stat, readFile } from "fs/promises";
-import Logs from "../../components//logs";
-import { checkPermission } from "../../components//account";
-import fsExist from "../../components//files/fsExist";
+import Logs from "../../components/logs";
+import { checkPermission } from "../../components/account";
+import fsExist from "../../components/files/fsExist";
 
 const route: Socket = async (client, args, reply) => {
 	try {

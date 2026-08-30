@@ -156,6 +156,7 @@ const route: HTTP<{
 	},
 	handler: async (request, response) => {
 		try {
+			response.raw.setHeader("X-Success", "TRUE");
 			const stream = send(
 				request.raw,
 				request.path,

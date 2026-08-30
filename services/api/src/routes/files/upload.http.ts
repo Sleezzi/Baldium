@@ -1,13 +1,13 @@
 import { HTTP } from "@baldium/shared-types/src/Route.js";
-import queryAsync from "../../components//queryAsync";
+import queryAsync from "../../components/queryAsync";
 
 import { pipeline } from "stream/promises";
 import { createWriteStream } from "fs";
-import Logs from "../../components//logs";
-import { checkPermission } from "../../components//account";
-import { authenticate } from "../../components//account";
-import { blocklist, isNotTraversal } from "../../components//files/Unauthorized";
-import fsExist from "../../components//files/fsExist";
+import Logs from "../../components/logs";
+import { checkPermission } from "../../components/account";
+import { authenticate } from "../../components/account";
+import { blocklist, isNotTraversal } from "../../components/files/Unauthorized";
+import fsExist from "../../components/files/fsExist";
 import { Trigger } from "../../components/subscription";
 
 const route: HTTP<{
