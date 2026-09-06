@@ -8,8 +8,8 @@ import { PassThrough }									from "stream";
 import { deleteBackup, getBackup, uploadStreamToR2 }	from "./components/R2";
 import queryAsync										from "./components/queryAsync";
 import Fastify											from "fastify";
-import { lookup } from "dns/promises";
-import { timingSafeEqual } from "crypto";
+import { lookup }										from "dns/promises";
+import { timingSafeEqual }								from "crypto";
 
 
 
@@ -41,7 +41,7 @@ async function ZIP() {
 		throw err;
 	});
 	archive.glob("**/*", {
-		cwd: "/minecraft/world/",
+		cwd: process.env.WORLD_PATH!,
 		dot: true,
 		ignore: ["session.lock"] // The server continuously writes to Session.lock, so it is best not to back it up to avoid data corruption.
 	});
@@ -134,12 +134,6 @@ async function Backup() {
 				type: "number",
 				minimum: 6,
 			},
-			headers: {
-				
-			}
-		},
-		preHandler: () => {
-			
 		},
 		handler: (request, response) => {
 			const body = request.body as number;
@@ -155,7 +149,7 @@ async function Backup() {
 			body: {
 				type: "number",
 				minimum: 1
-			}
+			},
 		},
 		handler: (request, response) => {
 			const body = request.body as number;

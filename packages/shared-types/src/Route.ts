@@ -35,5 +35,5 @@ postPreHandler extends any = any
 export type Socket = (
 	client: Client & { ip: string },
 	args: any,
-	reply: (status: number, response: any) => void
+	reply: (status: number, response: any) => Promise<void>
 ) => void;

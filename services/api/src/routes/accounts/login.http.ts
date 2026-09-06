@@ -45,13 +45,7 @@ const route: HTTP<{
 			await Logs(null, "The client attempted to log in, but their account was not found in the database", request.clientIP);
 			return response
 			.status(403)
-			.setCookie(
-				"token",
-				"",
-				{
-					maxAge: 0
-				}
-			)
+			.clearCookie("token")
 			.send({
 				status: 403,
 				response: "Invalid password"
@@ -62,13 +56,7 @@ const route: HTTP<{
 		if (!isValid) {
 			await Logs(accounts[0].id, "The client attempted to log in, but the password they provided is not the same as the one in the database", request.clientIP);
 			return response
-			.setCookie(
-				"token",
-				"",
-				{
-					maxAge: 0
-				}
-			)
+			.clearCookie("token")
 			.status(403)
 			.send({
 				status: 403,
@@ -95,7 +83,8 @@ const route: HTTP<{
 					maxAge: 2629743,
 					secure: !(process.env.DEBUG === "TRUE"),
 					httpOnly: true,
-					sameSite: process.env.DEBUG === "TRUE" ? "lax" : "none"
+					sameSite: process.env.DEBUG === "TRUE" ? "lax" : "none",
+					domain: process.env.DEBUG === "TRUE" ? undefined : process.env.COOKIE_DOMAIN
 				}
 			)
 			.send({

@@ -25,10 +25,12 @@ services:
     environment:
       ENABLE_RCON: "true"
       ENABLE_ROLLING_LOGS: "true"
+      BROADCAST_RCON_TO_OPS: "false"
       EULA: "TRUE"
-      JVM_OPTS: "-Xmx5G -Xms512M"     # Must be the same value as "mem_limit" but 0.5 lower.
+      JVM_OPTS: "-Xmx5G -Xms512M"     # Max must be the same value as "mem_limit" but 0.5 lower.
       LOG_TIMESTAMP: "true"
       MEMORY: ""                      # Must be empty because it's set with JVM_OPTS and mem_limit
+      # VERSION: "1.8.9"
       RCON_CMDS_LAST_DISCONNECT: |-
         save-all flush
     volumes:
@@ -98,7 +100,7 @@ services:
       - ./services/backup/.env
     environment:
       API_HOST: "api"
-      WORLD_PATH: "/minecraft"
+      WORLD_PATH: "/minecraft/world"
       # DATABASE_USER: "backup"
       # DATABASE_PASSWORD: "password1234"
       # DATABASE_NAME: "baldium"
@@ -159,6 +161,8 @@ services:
     env_file:
       - ./services/api/.env
     environment:
+      HTTP_PORT: 80
+      WEBSOCKET_PORT: 81
       # SECRET_KEY: "SUPER_SECRET_KEY"                                                                     # This key is used during token generation and data encryption. It must absolutely remain secret.
       # LOW_SECRET_KEY: "SUPER_SECRET_KEY_BUT_DIFFERENT_FROM_SECRET_KEY"                                   # This key is used for encrypting email addresses. It must be different from SECRET_KEY.
       MINECRAFT_IP: "minecraft"                                                                            # The name of the container used for the Minecraft server. It allows connection to the server's RCON.
@@ -188,13 +192,14 @@ services:
       BACKUP: "backup:3080"                                                                                # The client ID from the Discord application. It is used for authenticating the user via Discord.
       # DISCORD_CLIENT_ID: "01234567890123456"                                                             # The client ID from the Discord application. It is used for authenticating the user via Discord.
       # DISCORD_CLIENT_SECRET: "Secret_Generated_By_Discord"                                               # The secret client from the Discord application. It is used for user authentication by Discord.
-      
+      COOKIE_DOMAIN: "hubris.top"                                                                          # Your dashboard's domain will be used in the domain field of the cookies.
+
       #  ***   DEBUG do :                                                                                  # 
       #  ***     - detailed logging in Fastify                                                             # 
       #  ***     - disables CORS checks                                                                    # 
       #  ***     - disables Cloudflare verification                                                        # 
       #  ***     - disables secure and SameSite cookie attributes                                          # 
-      DEBUG: "FALSE"                                                                                       # Must be TRUE or FALSE
+      DEBUG: "TRUE"                                                                                        # Must be TRUE or FALSE
     deploy:
       resources:
         limits:

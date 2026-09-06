@@ -8,19 +8,19 @@ const route: Socket = async (client, args, reply) => {
 	try {
 		const accounts: Omit<Omit<Omit<Omit<Accounts, "hash">, "version">, "permissions">, "discord">[] = await queryAsync("SELECT username, email FROM accounts WHERE id = ? LIMIT 1", client.userId);
 		if (accounts.length === 0) {
-			reply(404, "Can't find the user's account");
+			await reply(404, "Can't find the user's account");
 			await Logs(client.userId, "The client attempted to retrieve their profile, but it cannot be found in the database.", client.ip);
 			return;
 		}
 		const account = accounts[0];
 
-		reply(200, {
+		await reply(200, {
 			username: account.username,
 			email: decipher(account.email)
 		});
 	} catch (err) {
 		console.error(err);
-		reply(500, "Internal error");
+		await reply(500, "Internal error");
 	}
 }
 

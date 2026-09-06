@@ -8,13 +8,7 @@ const route: HTTP<{}, {}> = {
 		try {
 			response
 			.status(200)
-			.setCookie(
-				"token",
-				"",
-				{
-					maxAge: 0
-				}
-			)
+			.clearCookie("token")
 			.send({
 				status: 200,
 				response: "Success"

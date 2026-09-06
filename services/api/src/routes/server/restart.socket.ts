@@ -8,17 +8,17 @@ const route: Socket = async (client, args, reply) => {
 	try {
 		if (!checkPermission("server", client.permissions)) {
 			await Logs(client.userId, "The client attempted to restart the server but lacks sufficient permissions.", client.ip);
-			reply(403, "You can't access to this ressource");
+			await reply(403, "You can't access to this ressource");
 			return;
 		}
 		await Logs(client.userId, "The client initiated a server restart.", client.ip);
 		await docker.sendAction("Restart");
 		
-		reply(200, "Restarting");
+		await reply(200, "Restarting");
 		Trigger("server_status", "restarted");
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

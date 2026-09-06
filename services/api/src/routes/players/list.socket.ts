@@ -10,7 +10,7 @@ const route: Socket = async (client, args, reply) => {
 	try {
 		if (!checkPermission("players", client.permissions)) {
 			await Logs(client.userId, "The client attempted to retrieve the list of players but does not have the necessary permissions.", client.ip);
-			reply(403, "You can't access to this ressource");
+			await reply(403, "You can't access to this ressource");
 			return;
 		}
 		const path = `${process.env.SERVER_PATH}/usercache.json`;
@@ -44,9 +44,9 @@ const route: Socket = async (client, args, reply) => {
 			player.online = true;
 		}
 		await Logs(client.userId, "The client retrieved the list of players", client.ip);
-		reply(200, players);
+		await reply(200, players);
 	} catch (err) {
-		reply(501, "Internal Error");
+		await reply(501, "Internal Error");
 		console.error(err);
 	}
 }

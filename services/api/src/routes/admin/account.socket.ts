@@ -10,12 +10,12 @@ const route: Socket = async (client, args, reply) => {
 	try {
 		if (!checkPermission("admin", client.permissions)) {
 			await Logs(client.userId, "The client attempted to view the list of accounts but does not have sufficient permissions to", client.ip);
-			reply(403, "You can't access to this");
+			await reply(403, "You can't access to this");
 			return;
 		}
 		if (typeof args !== "number") {
 			await Logs(client.userId, "The client attempted get the profile of a user but did not provide a valid ID.", client.ip);
-			reply(400, "Invalid user id");
+			await reply(400, "Invalid user id");
 			return;
 		}
 		await Logs(client.userId, "The client accessed the list of accounts", client.ip);
@@ -23,13 +23,13 @@ const route: Socket = async (client, args, reply) => {
 		
 		if (accounts.length === 0) {
 			await Logs(client.userId, `The client attempted to get the profile of the user #${args} but no account where found`, client.ip);
-			reply(404, "Can't find the user's account");
+			await reply(404, "Can't find the user's account");
 			return;
 		}
 
 		const account = accounts[0];
 
-		reply(200, {
+		await reply(200, {
 			id: account.id,
 			username: account.username,
 			email: decipher(account.email),
@@ -39,7 +39,7 @@ const route: Socket = async (client, args, reply) => {
 		});
 	} catch (err) {
 		console.error(err);
-		reply(500, "Internal error");
+		await reply(500, "Internal error");
 	}
 }
 

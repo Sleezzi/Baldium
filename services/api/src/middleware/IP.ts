@@ -18,22 +18,15 @@ function extractClientIP(req: FastifyRequest): string | undefined {
 
 
 const middleware = async (app: FastifyInstance) => {
-	await app.register(
-		fp(
-			async (_app: FastifyInstance) => {
-				_app.addHook("onRequest", async (req, reply) => {
-					const ip = extractClientIP(req);
+	app.addHook("onRequest", async (req, reply) => {
+		const ip = extractClientIP(req);
 
-					if (!ip) {
-						return reply.code(400).send("Unable to determine client IP");
-					}
+		if (!ip) {
+			return reply.code(400).send("Unable to determine client IP");
+		}
 
-					req.clientIP = ip;
-				});
-			},
-			{ name: "client-ip" },
-		)
-	);
+		req.clientIP = ip;
+	});
 }
 
 module.exports = middleware;

@@ -110,40 +110,46 @@ const http = Fastify({
 wss.on("connection", async (ws, req) => {
 	try {
 		// Normalizes outgoing responses to the message envelope expected by clients.
-		const reply = (code: number, response: any, request: string, id: string | null = null) => {
+		const reply = (code: number, response: any, request: string, id: string | null = null): Promise<void> => new Promise((resolve, error) => {
 			try {
 				ws.send(JSON.stringify({
 					id: id,
 					request: request,
 					response: response,
 					status: code
-				}));
+				}), (err) => {
+					if (err) return error(err);
+					resolve();
+				});
 			} catch (err) {
 				console.error("[SOCKET]", err);
 			}
-		}
+		});
+		
 		if (process.env.DEBUG !== "TRUE") {
-			if (!req.socket.remoteAddress) {
+			const realip = req.headers["x-real-ip"]; // This header is created by NGINX; it allows retrieving the actual IP address, whereas `request.ip` returns only the IP used by Docker.
+			
+			if (!realip) {
 				Logs(null, "A WebSocket connection was blocked because the server failed to retrieve the connection's IP address.", "0");
-				reply(400, "The server cannot determine which IP address you are using.", "auth", null);
+				await reply(400, "The server cannot determine which IP address you are using.", "auth", null);
 				ws.close();
 				return;
 			}
-			if (!isCloudflareIp(req.socket.remoteAddress)) {
-				Logs(null, "The IP used does not originate from Cloudflare servers.", req.socket.remoteAddress);
-				reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
+			if (!isCloudflareIp(realip.toString())) {
+				Logs(null, "The IP used does not originate from Cloudflare servers.", "0");
+				await reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
 				ws.close();
 				return;
 			}
 			if (!req.headers['x-origin-verify']) {
-				Logs(null, "The IP used does not originate from Cloudflare servers.", req.socket.remoteAddress);
-				reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
+				Logs(null, "The IP used does not originate from Cloudflare servers.", "0");
+				await reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
 				ws.close();
 				return;
 			}
 			if (!isCloudflare(req.headers['x-origin-verify'].toString())) {
-				Logs(null, "The IP used does not originate from Cloudflare servers.", req.socket.remoteAddress);
-				reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
+				Logs(null, "The IP used does not originate from Cloudflare servers.", "");
+				await reply(403, "You must route this request through Cloudflare's servers.", "auth", null);
 				ws.close();
 				return;
 			}
@@ -151,26 +157,28 @@ wss.on("connection", async (ws, req) => {
 
 		// Extracts client IP from trusted proxy headers with socket fallback.
 		const ip = ((): string | undefined => {
-			if (process.env.DEBUG === "TRUE") return req.socket.remoteAddress;
 			if (req.headers['cf-connecting-ip']) return req.headers['cf-connecting-ip'].toString();
+			if (process.env.DEBUG === "TRUE") return req.socket.remoteAddress;
 		})();
 
 		if (!ip) {
-			Logs(null, "A WebSocket connection was blocked because the server failed to retrieve the connection's IP address.", "0");
-			reply(400, "The server cannot determine which IP address you are using.", "auth", null);
+			await reply(400, "The server cannot determine which IP address you are using.", "auth", null);
+			console.log("Missing ip");
 			ws.close();
 			return;
 		}
 		
 		if (!req.headers.cookie) { // Checks if the client has correctly provided a token in their request
-			reply(401, "Missing cookies", "auth", null);
+			await reply(401, "Missing cookies", "auth", null);
+			console.log("Missing cookie");
 			ws.close();
 			return;
 		}
 		const token = req.headers.cookie.split("; ").find((cookie) => cookie.startsWith("token="));
 		
 		if (!token) { // Checks if the client has correctly provided a token in their request
-			reply(401, "Missing token in cookies", "auth", null);
+			await reply(401, "Missing token in cookies", "auth", null);
+			console.log("Missing token");
 			ws.close();
 			return;
 		}
@@ -180,26 +188,26 @@ wss.on("connection", async (ws, req) => {
 			switch (isValid.message) {
 				case "INVALID_TOKEN":
 					await Logs(null, "The handcheck with this client and server failed because the client provided an invalid token.", ip!);
-					reply(401, "Invalid token", "auth", null);
+					await reply(401, "Invalid token", "auth", null);
 					break;
 				case "MISSING_PAYLOAD":
 					await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
-					reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
+					await reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
 					break;
 				case "INVALID_PAYLOAD":
 					await Logs(null, "The handshake with the client failed because the server was unable to decode the token provided by the client.", ip!);
-					reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
+					await reply(403, "We are unable to properly authenticate the user because the token's payload is not readable", "auth", null);
 					break;
 				case "INVALID_USERID":
 					await Logs(null, "The handshake with the client failed because the userId is invalid.", ip!);
-					reply(403, "Unable to authenticate you because the user ID in the token payload is invalid.", "auth", null);
+					await reply(403, "Unable to authenticate you because the user ID in the token payload is invalid.", "auth", null);
 					break;
 				case "INVALID_VERSION":
 					await Logs(null, "The handshake with the client failed because the version is invalid.", ip!);
-					reply(403, "Unable to authenticate you because the version in the token payload is invalid.", "auth", null);
+					await reply(403, "Unable to authenticate you because the version in the token payload is invalid.", "auth", null);
 					break;
 				default:
-					reply(500, "Internal error", "auth", null);
+					await reply(500, "Internal error", "auth", null);
 					break;
 			}
 			ws.close();
@@ -210,7 +218,8 @@ wss.on("connection", async (ws, req) => {
 		const accounts: { id: number, username: string, permissions: number, discord: number | null }[] = await queryAsync("SELECT username, permissions, discord FROM accounts WHERE id = ? LIMIT 1", user);
 		if (accounts.length === 0) {
 			await Logs(user, "The handcheck with this client and server failed because the client tried to login as a deleted account.", ip!);
-			reply(403, "It appears that your account has been deleted.", "auth", null);
+			await reply(403, "It appears that your account has been deleted.", "auth", null);
+			console.log("Missing account");
 			ws.close();
 			return;
 		}
@@ -230,6 +239,7 @@ wss.on("connection", async (ws, req) => {
 		const connectionId = uuid();
 		connections.set(user, {
 			close: (reason) => {
+				if (!ws.OPEN) return;
 				if (reason) {
 					Trigger("client", {
 						userId: user,
@@ -239,19 +249,22 @@ wss.on("connection", async (ws, req) => {
 				}
 				ws.close();
 			},
-			send: (message, service, object) => {
+			send: async (message, service, object) => new Promise((resolve, error) => {
 				ws.send(JSON.stringify({
 					request: "unsolicited-message",
 					message: message,
 					service: service,
 					object: object,
-				}));
-			},
+				}), (err) => {
+					if (err) return error(err);
+					resolve();
+				});
+			}),
 			connectionId: connectionId,
 			permissions: account.permissions,
 		});
 
-		reply(200, {
+		await reply(200, {
 			userId: user,
 			username: account.username,
 			permissions: account.permissions,
@@ -260,7 +273,6 @@ wss.on("connection", async (ws, req) => {
 
 		const client = {
 			userId: user,
-			permissions: account.permissions,
 			discord: account.discord
 		};
 
@@ -269,13 +281,13 @@ wss.on("connection", async (ws, req) => {
 				const message: Message = JSON.parse(raw.toString());
 				if (!message.request) {
 					await Logs(null, "The client did not send a valid message to the server.", ip);
-					reply(401, "Invalid request", message.request, message.id);
+					await reply(401, "Invalid request", message.request, message.id);
 					return;
 				}
 				
 				if (!routes.has(message.request)) {
 					await Logs(client.userId, "The client sent a message to the server requesting a route that does not exist.", ip);
-					reply(404, "Invalid route", message.request, message.id);
+					await reply(404, "Invalid route", message.request, message.id);
 					return;
 				}
 				const route = routes.get(message.request)!;
@@ -287,7 +299,7 @@ wss.on("connection", async (ws, req) => {
 				const connection = connections.get(client.userId);
 				if (!connection) {
 					await Logs(client.userId, `The client sent a message via the WebSocket, but their session could not be found in the \`connections\` map.`, ip);
-					reply(403, "Invalid session", message.request, message.id);
+					await reply(403, "Invalid session", message.request, message.id);
 					ws.close();
 					return;
 				}
@@ -301,7 +313,7 @@ wss.on("connection", async (ws, req) => {
 						ip: ip,
 					},
 					message.args,
-					(status, response) => reply(status, response, message.request, message.id),
+					async (status, response) => await reply(status, response, message.request, message.id),
 				);
 			} catch (err) {
 				console.error("[SOCKET]", err);

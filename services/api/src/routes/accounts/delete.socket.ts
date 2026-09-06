@@ -11,11 +11,11 @@ const route: Socket = async (client, args, reply) => {
 	try {
 		const accounts: { email: string, username: string }[] = await queryAsync("SELECT email, username FROM accounts WHERE id = ? LIMIT 1", client.userId);
 		if (accounts.length === 0) {
-			reply(404, "You requested account deletion, but your account information is not available. Therefore, your account has not been deleted.");
+			await reply(404, "You requested account deletion, but your account information is not available. Therefore, your account has not been deleted.");
 			await Logs(client.userId, "The client requested the deletion of their account, but their account information is not available.", client.ip);
 			return;
 		}
-		const account = accounts[0];
+		// const account = accounts[0];
 
 		// const document = domino.createDocument("<html></html>");
 		// const content = document.createElement("div");
@@ -38,11 +38,11 @@ const route: Socket = async (client, args, reply) => {
 
 		await queryAsync("DELETE FROM accounts WHERE id = ? LIMIT 1", client.userId);
 
-		reply(200, "Success");
+		await reply(200, "Success");
 		connections.delete(client.userId);
 	} catch (err) {
 		console.error(err);
-		reply(500, "Internal error");
+		await reply(500, "Internal error");
 	}
 }
 

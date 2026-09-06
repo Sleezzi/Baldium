@@ -8,12 +8,12 @@ const route: Socket = async (client, args: number, reply) => {
 	try {
 		if (!checkPermission("admin", client.permissions)) {
 			await Logs(client.userId, "The client attempted to read a log's file but does not have the necessary permissions", client.ip);
-			reply(403, "You don't have the permission to read log's file");
+			await reply(403, "You don't have the permission to read log's file");
 			return;
 		}
 		if (typeof args !== "number") {
 			await Logs(client.userId, "The client attempted to read a log's file but did not provide a valid user id", client.ip);
-			reply(400, "Invalid user id");
+			await reply(400, "Invalid user id");
 			return;
 		}
 		const files = (await readdir(join(process.env.LOGS_PATH!, args.toString()), { withFileTypes: true, recursive: false }))
@@ -22,10 +22,10 @@ const route: Socket = async (client, args: number, reply) => {
 		.map((file) => file.name)
 		.sort((a, b) => a.localeCompare(b));
 
-		reply(200, files);
+		await reply(200, files);
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

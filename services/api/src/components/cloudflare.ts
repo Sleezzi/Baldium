@@ -42,7 +42,6 @@ export function isCloudflareIp(ip: string): boolean {
 }
 
 export function isCloudflare(key: string): boolean {
-	if (process.env.CLOUDFLARE_ORIGIN_VERIFY!.length === key.length) return false;
-	
+	if (process.env.CLOUDFLARE_ORIGIN_VERIFY!.length !== key.length) return false;
 	return timingSafeEqual(Buffer.from(key), Buffer.from(process.env.CLOUDFLARE_ORIGIN_VERIFY!));
 }

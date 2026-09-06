@@ -4,10 +4,10 @@ import { ungzip } from "pako";
 
 import * as pnbt from "prismarine-nbt";
 
-import rcon from "../../components/con";
-import Logs from "../../components/ogs";
-import { checkPermission } from "../../components/ccount";
-import fsExist from "../../components/iles/fsExist";
+import rcon from "../../components/rcon";
+import Logs from "../../components/logs";
+import { checkPermission } from "../../components/account";
+import fsExist from "../../components/files/fsExist";
 import { blocklist, isNotTraversal } from "../../components/files/Unauthorized";
 
 
@@ -15,17 +15,17 @@ const route: Socket = async (client, args: string, reply) => {
 	try {
 		if (!checkPermission("players", client.permissions)) {
 			await Logs(client.userId, "The client attempted to access a player's information but does not have permission to", client.ip);
-			reply(403, "You can't access to this ressource");
+			await reply(403, "You can't access to this ressource");
 			return;
 		}
 		if (!args) {
 			await Logs(client.userId, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
-			reply(400, "Invalid player id");
+			await reply(400, "Invalid player id");
 			return;
 		}
 		if (typeof args !== "string") {
 			await Logs(client.userId, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
-			reply(400, "Invalid player id");
+			await reply(400, "Invalid player id");
 			return;
 		}
 		const onlines = await rcon.send("list uuids");
@@ -39,33 +39,33 @@ const route: Socket = async (client, args: string, reply) => {
 		const playerdata = isNotTraversal(process.env.SERVER_PATH!, "/world/playerdata/", `${args}.dat`);
 		if (!playerdata) {
 			await Logs(client.userId, "The client attempted to access a player's information but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
-			reply(400, "Invalid player id");
+			await reply(400, "Invalid player id");
 			return;
 		}
 		for (const unauthorized of blocklist) {
 			if (typeof unauthorized === "string") {
 				if (unauthorized === playerdata) {
 					await Logs(client.userId, "The client attempted to access a player's information but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
-					reply(400, "Invalid player id");
+					await reply(400, "Invalid player id");
 					return;
 				}
 			}
 			if (playerdata.match(unauthorized)) {
 				await Logs(client.userId, "The client attempted to access a player's information but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
-				reply(400, "Invalid player id");
+				await reply(400, "Invalid player id");
 				return;
 			}
 		}
 		if (!await fsExist(playerdata)) {
 			await Logs(client.userId, "The client attempted to access a player's information but did not provide a valid path to the file", client.ip);
-			reply(404, "Player not found");
+			await reply(404, "Player not found");
 			return;
 		}
 
 		const playerDataCompressed = await readFile(playerdata);
 		if (!playerDataCompressed) {
 			await Logs(client.userId, "The client attempted to access a player's information but the server can't decompress the file", client.ip);
-			reply(500, "The server can't read the player's data");
+			await reply(500, "The server can't read the player's data");
 		}
 		
 		const playerDataUncompressed = ungzip(playerDataCompressed);
@@ -75,14 +75,14 @@ const route: Socket = async (client, args: string, reply) => {
 
 		if (!value) {
 			await Logs(client.userId, "The client attempted to access a player's information but the server can't read the file", client.ip);
-			reply(502, "Internal Error");
+			await reply(502, "Internal Error");
 			return;
 		}
 
 		const path = `${process.env.SERVER_PATH}/usercache.json`;
 		if (!await fsExist(path)) {
 			await Logs(client.userId, "The client attempted to access a player's information, but the server can't find /usercache.json.", client.ip);
-			reply(501, "Internal Error");
+			await reply(501, "Internal Error");
 			return;
 		}
 		
@@ -96,12 +96,12 @@ const route: Socket = async (client, args: string, reply) => {
 
 		if (!player) {
 			await Logs(client.userId, "The client attempted to access a player's information but did not provide the data requested by the server", client.ip);
-			reply(404, "Player not found");
+			await reply(404, "Player not found");
 			return;
 		}
 		
 		await Logs(client.userId, `The client attempted to access player information "${player.name}"`, client.ip);
-		reply(200, {
+		await reply(200, {
 			username: player.name,
 			inventory: value.Inventory,
 			equipments: value.equipment,
@@ -127,7 +127,7 @@ const route: Socket = async (client, args: string, reply) => {
 		});
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

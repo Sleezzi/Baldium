@@ -10,38 +10,38 @@ const route: Socket = async (client, args: string, reply) => {
 	try {
 		if (!checkPermission("read_files", client.permissions)) {
 			await Logs(client.userId, "The client attempted to list files from a folder but does not have permission to", client.ip);
-			reply(403, "You don't have the permission to read folder's content");
+			await reply(403, "You don't have the permission to read folder's content");
 			return;
 		}
 		if (typeof args !== "string") {
 			await Logs(client.userId, "The client attempted to list files from a folder but did not provide a path", client.ip);
-			reply(400, "Invalid path");
+			await reply(400, "Invalid path");
 			return;
 		}
 		const path = isNotTraversal(process.env.SERVER_PATH!, args);
 		if (!path) {
 			await Logs(client.userId, "The client attempted to list a folder but did not provide a valid path to the folder\n /!\\ The path was actually a hidden path", client.ip);
-			reply(404, "File not found");
+			await reply(404, "File not found");
 			return;
 		}
 		for (const unauthorized of blocklist) {
 			if (typeof unauthorized === "string") {
 				if (unauthorized === path) {
 					await Logs(client.userId, "The client attempted to list a folder but did not provide a valid path to the folder\n /!\\ The path was actually a hidden path", client.ip);
-					reply(404, "File not found");
+					await reply(404, "File not found");
 					return;
 				}
 			}
 			if (path.match(unauthorized)) {
 				await Logs(client.userId, "The client attempted to list a folder but did not provide a valid path to the folder\n /!\\ The path was actually a hidden path", client.ip);
-				reply(404, "File not found");
+				await reply(404, "File not found");
 				return;
 			}
 		}
 		
 		if (!await fsExist(path) || !(await stat(path)).isDirectory()) {
 			await Logs(client.userId, `The client attempted to list files in a folder, but it does not exist`, client.ip);
-			reply(404, "Folder not found");
+			await reply(404, "Folder not found");
 			return;
 		}
 		
@@ -74,10 +74,10 @@ const route: Socket = async (client, args: string, reply) => {
 			return result;
 		}));
 		
-		reply(200, files);
+		await reply(200, files);
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

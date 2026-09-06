@@ -9,27 +9,27 @@ const route: Socket = async (client, args: { user: number, permissions: number }
 	try {
 		if (!checkPermission("admin", client.permissions)) {
 			await Logs(client.userId, "The client attempted to view the list of accounts but does not have sufficient permissions to", client.ip);
-			reply(403, "You can't access to this");
+			await reply(403, "You can't access to this");
 			return;
 		}
 		if (typeof args !== "object") {
 			await Logs(client.userId, "The client attempted to modify the permissions but did not provide a args.", client.ip);
-			reply(400, "Invalid request");
+			await reply(400, "Invalid request");
 			return;
 		}
 		if (!("user" in args) || typeof args.user !== "number") {
 			await Logs(client.userId, "The client attempted to modify the permissions but did not provide a valid ID.", client.ip);
-			reply(400, "Invalid user id");
+			await reply(400, "Invalid user id");
 			return;
 		}
 		if (!("permissions" in args) || typeof args.permissions !== "number") {
 			await Logs(client.userId, `The client attempted to modify the permissions of ${args.user} but did not provide a valid permissions.`, client.ip);
-			reply(400, "Invalid user id");
+			await reply(400, "Invalid user id");
 			return;
 		}
 		if (args.user === 1) {
 			await Logs(client.userId, "The client attempted to modify the permissions but provid the owner id.", client.ip);
-			reply(400, "You can't edit the owner permissions");
+			await reply(400, "You can't edit the owner permissions");
 			return;
 		}
 		await queryAsync("UPDATE accounts SET permissions = ? WHERE id = ? LIMIT 1", args.permissions, args.user);
@@ -47,10 +47,10 @@ const route: Socket = async (client, args: { user: number, permissions: number }
 				permissions: args.permissions
 			});
 		}
-		reply(200, "The permission have been updated");
+		await reply(200, "The permission have been updated");
 	} catch (err) {
 		console.error(err);
-		reply(500, "Internal error");
+		await reply(500, "Internal error");
 	}
 }
 

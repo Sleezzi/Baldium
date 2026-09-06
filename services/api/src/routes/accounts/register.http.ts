@@ -127,7 +127,8 @@ const route: HTTP<{
 					maxAge: 2629743,
 					secure: !(process.env.DEBUG === "TRUE"),
 					httpOnly: true,
-					sameSite: process.env.DEBUG === "TRUE" ? "lax" : "none"
+					sameSite: process.env.DEBUG === "TRUE" ? "lax" : "none",
+					domain: process.env.DEBUG === "TRUE" ? undefined : process.env.COOKIE_DOMAIN
 				}
 			)
 			.status(200)

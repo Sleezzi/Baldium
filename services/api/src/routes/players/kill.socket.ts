@@ -7,27 +7,27 @@ const route: Socket = async (client, args: string, reply) => {
 	try {
 		if (!checkPermission("players", client.permissions)) {
 			await Logs(client.userId, "The client attempted to kill a player but does not have permission to", client.ip);
-			reply(403, "You can't access to this ressource");
+			await reply(403, "You can't access to this ressource");
 			return;
 		}
 		if (!args) {
 			await Logs(client.userId, "The client attempted to kill a player but did not provide the data requested by the server", client.ip);
-			reply(400, "Invalid player name");
+			await reply(400, "Invalid player name");
 			return;
 		}
 		if (typeof args !== "string" || args.includes("@")) {
 			await Logs(client.userId, "The client attempted to kill a player but did not provide the data requested by the server", client.ip);
-			reply(400, "Invalid player name");
+			await reply(400, "Invalid player name");
 			return;
 		}
 
 		await Logs(client.userId, `The client killed the player "${args}"`, client.ip);
 		await rcon.send(`kill ${args}`);
 		
-		reply(200, "Success");
+		await reply(200, "Success");
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

@@ -6,31 +6,31 @@ const route: Socket = async (client, subscriptionId: string, reply) => {
 	try {
 		if (subscriptionId) {
 			Unsubscribe(subscriptionId);
-			reply(200, "Removed");
+			await reply(200, "Removed");
 			return;
 		}
 		const id = Subscribe(
 			client.userId,
 			"client",
 			60 * 1000 * 5,
-			({ userId, reason, args }: { userId: number, reason: string, args: string }) => {
+			async ({ userId, reason, args }: { userId: number, reason: string, args: string }) => {
 				if (userId !== client.userId) return;
-				reply(103, {
+				await reply(103, {
 					reason,
 					args
 				});
 			},
-			() => reply(200, "Your subscription has expired. You will no longer receive messages from this server regarding this event unless you resubscribe.")
+			async () => await reply(200, "Your subscription has expired. You will no longer receive messages from this server regarding this event unless you resubscribe.")
 		);
 		if (!id) {
 			await Logs(client.userId, "The client attempted to subscribe to the client channel, but their subscription was not registered.", client.ip);
-			reply(502, "Internal error");
+			await reply(502, "Internal error");
 			return;
 		}
-		reply(207, id);
+		await reply(207, id);
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

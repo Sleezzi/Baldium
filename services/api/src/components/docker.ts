@@ -10,7 +10,7 @@ if (!process.env.SOCKET_DOCKER_PROXY) {
 
 const ws = new WebSocket(process.env.SOCKET_DOCKER_PROXY!, {
 	headers: {
-		cookie: `pass=${process.env.SOCKET_DOCKER_PROXY_PASSWORD!};`
+		"x-internal-secret": process.env.INTERNAL_SECRET!
 	}
 });
 

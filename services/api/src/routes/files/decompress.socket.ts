@@ -11,19 +11,19 @@ const route: Socket = async (client, args: string, reply) => {
 	try {
 		if (!checkPermission("manage_files", client.permissions)) {
 			await Logs(client.userId, "The client attempted to decompress a file but does not have the necessary permissions to do so", client.ip);
-			reply(403, "You don't have the permission to decompress files");
+			await reply(403, "You don't have the permission to decompress files");
 			return;
 		}
 		if (typeof args !== "string") {
 			await Logs(client.userId, "The client attempted to decompress a file but did not provide a valid path to the file", client.ip);
-			reply(400, "Invalid path");
+			await reply(400, "Invalid path");
 			return;
 		}
 
 		const path = isNotTraversal(process.env.SERVER_PATH!, args);
 		if (!path) {
 			await Logs(client.userId, "The client attempted to decompress a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
-			reply(404, "File not found");
+			await reply(404, "File not found");
 			return;
 		}
 		
@@ -31,27 +31,27 @@ const route: Socket = async (client, args: string, reply) => {
 			if (typeof unauthorized === "string") {
 				if (unauthorized === path) {
 					await Logs(client.userId, "The client attempted to decompress a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
-					reply(404, "File not found");
+					await reply(404, "File not found");
 					return;
 				}
 			}
 			if (path.match(unauthorized)) {
 				await Logs(client.userId, "The client attempted to decompress a file but did not provide a valid path to the file\n /!\\ The path was actually a hidden path", client.ip);
-				reply(404, "File not found");
+				await reply(404, "File not found");
 				return;
 			}
 		}
 		
 		if (!(await fsExist(path))) {
 			await Logs(client.userId, `The client attempted to decompress the file located in ${path} but it's doesn't exist`, client.ip);
-			reply(404, "File not found");
+			await reply(404, "File not found");
 			return;
 		}
 		const stats = await stat(path);
 
 		if (!stats.isFile()) {
 			await Logs(client.userId, `The client attempted to decompress the file located in ${path} but it's not a file`, client.ip);
-			reply(404, "File not found");
+			await reply(404, "File not found");
 			return;
 		}
 		const parent = path.split("/").slice(0, -1).join("/");
@@ -67,10 +67,10 @@ const route: Socket = async (client, args: string, reply) => {
 		// Décompression
 
 		await Logs(client.userId, `The client decompressed the file located in ${path}`, client.ip);
-		reply(200, "Success");
+		await reply(200, "Success");
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

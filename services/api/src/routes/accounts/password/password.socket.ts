@@ -11,27 +11,27 @@ const route: Socket = async (client, args: { current: string, new: string }, rep
 	try {
 		if (!args) {
 			await Logs(client.userId, "The client attempted to change their password but did not provide any content in the message", client.ip);
-			reply(400, "Missing passwords");
+			await reply(400, "Missing passwords");
 			return;
 		}
 		
 		if (!args.current || typeof args.current !== "string") {
 			await Logs(client.userId, "The client attempted to change their password but did not provide any content in the message", client.ip);
-			reply(400,"Invalid current password");
+			await reply(400,"Invalid current password");
 			return;
 		}
 		if (!args.new || typeof args.new !== "string") {
-			reply(400,"Invalid new password");
+			await reply(400,"Invalid new password");
 			return;
 		}
 		if (args.new.length > 25 || args.new.length < 10) {
-			reply(400,"Invalid new password");
+			await reply(400,"Invalid new password");
 			return;
 		}
 		const hashs: {hash: string}[] = await queryAsync("SELECT hash FROM accounts WHERE id = ? LIMIT 1", client.userId) as any;
 		if (hashs.length === 0) {
 			await Logs(client.userId, "The client tried to change their password but their account could not be found in the database", client.ip);
-			reply(502, "The server can't find your account");
+			await reply(502, "The server can't find your account");
 			return;
 		}
 		
@@ -39,7 +39,7 @@ const route: Socket = async (client, args: { current: string, new: string }, rep
 		
 		if (!isValid) {
 			await Logs(client.userId, "The client tried to change their password, but the password they provided is not the same as the one in the database", client.ip);
-			reply(403, "Invalid current password");
+			await reply(403, "Invalid current password");
 			return;
 		}
 
@@ -51,7 +51,7 @@ const route: Socket = async (client, args: { current: string, new: string }, rep
 		const version = uuid();
 		
 		await queryAsync("UPDATE accounts SET hash = ?, version = ? WHERE id = ? LIMIT 1", hashedPassword, version, client.userId);
-		reply(200, "Success");
+		await reply(200, "Success");
 		Trigger("client", {
 			userId: client.userId,
 			reason: "password-updated",
@@ -59,7 +59,7 @@ const route: Socket = async (client, args: { current: string, new: string }, rep
 		connections.get(client.userId)!.close();
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

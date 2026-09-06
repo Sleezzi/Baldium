@@ -7,7 +7,7 @@ const route: Socket = async (client, args, reply) => {
 		const isActive = await docker.sendAction("Status");
 		await Logs(client.userId, "The client retrieved the server status.", client.ip);
 
-		reply(200, {
+		await reply(200, {
 			active: !!isActive,
 			name: process.env.MINECRAFT_NAME,
 			version: process.env.VERSION,
@@ -16,7 +16,7 @@ const route: Socket = async (client, args, reply) => {
 		});
 	} catch (err) {
 		console.error(err);
-		reply(502, "Internal error");
+		await reply(502, "Internal error");
 	}
 }
 

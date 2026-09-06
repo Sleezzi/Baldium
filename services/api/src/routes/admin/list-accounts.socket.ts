@@ -10,13 +10,13 @@ const route: Socket = async (client, args, reply) => {
 	try {
 		if (!checkPermission("admin", client.permissions)) {
 			await Logs(client.userId, "The client attempted to view the list of accounts but does not have sufficient permissions to", client.ip);
-			reply(403, "You can't access to this");
+			await reply(403, "You can't access to this");
 			return;
 		}
 		await Logs(client.userId, "The client accessed the list of accounts", client.ip);
 		const accounts: Omit<Omit<Accounts, "hash">, "version">[] = await queryAsync("SELECT id, username, email, discord, permissions FROM accounts");
 		
-		reply(200, accounts.map((user) => {
+		await reply(200, accounts.map((user) => {
 			const online = connections.has(user.id);
 			const email = decipher(user.email);
 			return {
@@ -30,7 +30,7 @@ const route: Socket = async (client, args, reply) => {
 		}));
 	} catch (err) {
 		console.error(err);
-		reply(500, "Internal error");
+		await reply(500, "Internal error");
 	}
 }
 

@@ -5,6 +5,7 @@ export const blocklist: (string | RegExp)[] = [
 	".rcon-cli.yaml",	// Contain rcon password
 	/.*\0.*/,			// Block null byte
 
+	"server.properties",					// Use files/server.properties/* instead
 	"run.bat",			// Better hidden
 	"run.sh",			// Better hidden
 	"eula.txt",			// Better hidden
